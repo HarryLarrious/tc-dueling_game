@@ -380,6 +380,10 @@ translucent panels and a class cockpit frame (cockpit reference).
   `color × 0.25`, so a marked glyph's shadow decodes too and the shader hides
   it. Side effect: on our plot, GUI text colored red ≥ 252 with green and
   blue in 128–251 loses its shadow; avoid those colors for normal text.
+- **Building glyph text in DF**: text built at run time (computed marker
+  colors) goes through "Parse MiniMessage Expression" with Allowed Tags
+  **Full**; the default "Style Only" drops `<font:mech:ui>` and the glyphs
+  show as missing-glyph boxes.
 - **HUD glyphs**: send the glyph as a boss bar's title. Vanilla centers bar
   `n`'s title on GUI (width/2, 3 + 19n); the shader keeps each glyph's offset
   from that point and moves the point to the anchor. The string's center
