@@ -30,6 +30,11 @@ mechs per map, 60 live projectiles (PLAN.md, CPU rules).
 - **The plot** (Plot 206003) is shared live state. Only place code on it
   (`tc-send.py`, `tc-clear.py`) when the user asks. In the PR, say what still
   needs testing in game.
+- **Resource pack**: every change under `pack/` must pass
+  `python3 tools/build_pack.py --check` (JSON, resource-location names, and
+  every shader compiled with `glslc` under the 26.3 define sets). Publish with
+  `--publish`, then push `pack-dist` (on the host, see below). An overridden
+  `minecraft:core/*` shader needs an entry in `tools/shader_variants.json`.
 - **Minecraft source**: the `minecraft-source` MCP has the decompiled 26.3
   client, its shaders and resources. Check render and shader facts there
   instead of relying on memory.

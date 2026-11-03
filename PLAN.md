@@ -481,9 +481,28 @@ the marker carries the choice.
 - Source in `pack/` (namespace `mech`: `items/`, `models/`, `textures/`,
   `font/`, `sounds/`; vanilla overrides under `minecraft/`: `shaders/core/`,
   `shaders/post/`, `post_effect/`, HUD sprites), Blockbench sources in
-  `pack/src/`, and `tools/build_pack.py` to zip it and stamp a version.
-- Hosted at a direct-download URL (e.g. a GitHub release asset). Each release
-  gets a new URL so clients never use a cached old pack.
+  `pack/src/` (not shipped). `pack.mcmeta` pins `min_format`/`max_format` to
+  `[97, 1]`; shaders change between versions, so a new client version means a
+  re-test and a new range.
+- `tools/build_pack.py` validates and builds the pack:
+  - JSON parses with no duplicate keys; every asset path is a valid resource
+    location (the game skips bad names silently).
+  - Every shader compiles with `glslc` the way the 26.3 client compiles it
+    (shaderc, Vulkan 1.2, auto-bound uniforms, `#include <ns:path.glsl>` from
+    `shaders/include/`) under every define set in
+    `tools/shader_variants.json`: all subsets of the shader's flags × no OIT
+    and each OIT stage × the device macros on and off. That superset passes
+    on the vanilla shaders. An overridden `minecraft:core/*` shader without an
+    entry fails the build. Vanilla includes are read from a local 26.3 client
+    jar (`--vanilla` or `MC_VANILLA`); they are never committed.
+  - The zip is deterministic and named `mech-pack-<content hash>.zip`.
+- Hosted on the orphan `pack-dist` branch (built zips, `latest.json`, a
+  README; nothing else) and loaded from
+  `https://raw.githubusercontent.com/HarryLarrious/tc-mech_game/pack-dist/<file>`.
+  `build_pack.py --publish` commits there without touching the work tree;
+  `--push` pushes. DF's `sendResourcePack` takes only a URL (no hash), and
+  raw files are cached for 5 minutes, so the content-hash file name is what
+  makes clients fetch a changed pack. An unchanged pack keeps its name.
 - Join flow: `sendResourcePack` → `resourcePackLoad` → menu room;
   `resourcePackDecline` → explain why the pack is needed, offer a retry.
 
@@ -645,6 +664,9 @@ the marker carries the choice.
   mech parts and test at the map's longest lines.
 - **Players must accept the pack.** Without it, mechs and UI are missing or
   broken, so the game gates on `isUsingResourcePack`.
+- **`pack-dist` grows with every release.** Each published zip stays in the
+  branch history. Fine while packs are small; once art lands, prune old zips
+  from the branch tip and keep the last few the plot might still reference.
 - **Plot products.** Cosmetic credits depend on DF's plot product system;
   check what DF allows a product to grant before building the store.
 - **Per-player hiding must stay complete.** Every menu entity has to be hidden
