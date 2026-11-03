@@ -43,6 +43,7 @@ class skeletons of placeholder parts, `@cpu` gauge). Next: the Stage 1 spikes in
 | `ui/menu.tc` | Menu framework: seated screens of panels, labels and buttons, hover, click, back, scroll |
 | `ui/mainscreen.tc` | Main menu screen: top bar, map selector, play, customize, party panel |
 | `ui/preview.tc` | 3D mech previews in menus (screen-locked by `core/item.vsh`) |
+| `ui/customizer.tc` | Robot customizer: categories, part options, stats, 3D mech; saves the loadout |
 | `ui/hudfont.tc` | Generated HUD font advances (`pack/src/hud_assets.py`) |
 | `pack/` | Resource pack source (`pack.mcmeta`, `assets/`; `src/` for Blockbench files and asset generators, not shipped) |
 | `pack/assets/minecraft/shaders/core/text.vsh`, `pack/assets/mech/shaders/include/ui.glsl` | Text shader: HUD glyphs, screen-locked menu panels, cursor (marker protocol in PLAN.md, UI and HUD) |

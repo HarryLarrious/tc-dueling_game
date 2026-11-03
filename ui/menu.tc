@@ -108,8 +108,12 @@ function menuRemoveEnt(ent: str) {
     privForget(ent);
 }
 
-/** Widgets of screen `id` for the player. Screens: "main" (ui/mainscreen.tc). */
+/** Widgets of screen `id` for the player. Screens: "main"
+ * (ui/mainscreen.tc), "custom" (ui/customizer.tc). */
 function menuScreen(id: str): list {
+    if (id == "custom") {
+        return customScreen(default.uuid);
+    }
     return mainScreen(default.uuid);
 }
 
@@ -326,10 +330,13 @@ function menuClickAt(cur: vec) {
 /** Runs a menu action for the player. Screens add their actions here. */
 function menuAction(action: str) {
     global menuLastAction = action;
-    if (action == "close" || action == "back") {
+    line screen = (global menuOf[default.uuid] as dict)["screen"] as str;
+    if (action == "back" && line screen != "main") {
+        menuOpen("main");
+    } else if (action == "close" || action == "back") {
         menuClose();
-    } else {
-        mainAction(action);
+    } else if (mainAction(action) == 0) {
+        customAction(action);
     }
 }
 

@@ -16,7 +16,8 @@ function selfTestOnJoin(): num {
 
 /** Visual demo after the checks: "" none, "hud" (the demo HUD for 10 s),
  * "fx" (each screen effect for 12 s), "cockpit" (frame, crosshair and gun
- * reticle for 15 s) or "menu" (the main menu for 15 s), for screenshots. */
+ * reticle for 15 s), "menu" (the main menu for 15 s) or "custom" (the
+ * customizer for 15 s), for screenshots. */
 function selfTestDemo(): str {
     return "";
 }
@@ -281,6 +282,22 @@ function runSelfTest {
     menuClickAt(vec(0 - 88, 0 - 20, 0));
     checkStr("map next runs", global menuLastAction, "map next");
     checkStr("map still picked", pickedMap(line me), "PROVING GROUNDS");
+    // Customizer (MEC-75): picks save the loadout; back returns to main.
+    line keepLo = saved "loadout %uuid";
+    menuAction("customize");
+    checkStr("customizer open", (global menuOf[line me] as dict)["screen"] as str, "custom");
+    menuAction("pick spider");
+    checkStr("pick class saves", playerLoadout()["cls"] as str, "spider");
+    menuAction("cat main");
+    checkStr("category switch", custCat(line me), "main");
+    menuAction("pick autocannon");
+    checkStr("pick main gun saves", playerLoadout()["main"] as str, "autocannon");
+    menuAction("pick railgun");
+    checkStr("spider railgun allowed", playerLoadout()["main"] as str, "railgun");
+    menuAction("back");
+    checkStr("back to main", (global menuOf[line me] as dict)["screen"] as str, "main");
+    saved "loadout %uuid" = line keepLo;
+    global custCatOf.remove(line me);
     menuAction("back");
     checkNum("back closes the menu", menuIsOpen(line me), 0, 0);
 
@@ -342,6 +359,12 @@ function runSelfTest {
         default.sendMessage(s"<gold>MECHTEST FX cockpit reticle %var(rp) dist %var(dist)");
         wait(300);
         cockpitHide(line me2);
+    } else if (selfTestDemo() == "custom") {
+        hudReset(line me2);
+        menuOpen("custom");
+        default.sendMessage(s"<gold>MECHTEST FX custom");
+        wait(300);
+        menuClose();
     } else if (selfTestDemo() == "menu") {
         hudReset(line me2);
         menuOpen("main");

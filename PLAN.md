@@ -591,7 +591,12 @@ translucent panels and a class cockpit frame (cockpit reference).
   `partVisual`); `core/item.vsh` then skips the camera rotation, projects
   with a fixed 70° view and squeezes depth to 0.075–0.095 blocks so the
   preview draws in front of every panel and behind the cursor. Fitted into
-  the widget's width and height. Found in game (2026-11-03):
+  the widget's width and height.
+- **Robot customizer as built** (`ui/customizer.tc`, MEC-75): BACK, the
+  seven categories (type, main gun, secondary, armor, augments 1 and 2,
+  cosmetic), the parts the class allows for the selected one (current pick
+  green), derived stats and the 3D mech. A pick goes through `validLoadout`
+  and is saved at once; the screen redraws with the new mech. Found in game (2026-11-03):
   `setRotation` does not turn a player who rides a seat, so the canvas-edge
   clamp likely does nothing; the cursor just stops at the canvas edge in the
   shader (clamped there).

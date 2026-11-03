@@ -1,0 +1,101 @@
+// Robot customizer screen (MEC-75), after references/ui references/menu/
+// mock up/robot customizer.png: the top bar with BACK, the categories (type,
+// guns, armor, augments, cosmetic), the parts the class allows for the
+// selected one (the current pick in green), the derived stats, and the mech
+// in 3D (ui/preview.tc). A pick is validated like @loadout and saved at
+// once; the screen redraws with the new mech.
+
+/** Selected category per player (uuid -> loadout key). */
+declare global custCatOf: dict;
+
+/** Loadout keys in category order, with their labels. */
+function custKeys(): list {
+    return ["cls", "main", "secondary", "armor", "aug1", "aug2", "cosmetic"];
+}
+
+function custLabels(): list {
+    return ["TYPE", "MAIN GUN", "SECONDARY", "ARMOR", "AUGMENT 1", "AUGMENT 2", "COSMETIC"];
+}
+
+/** The player's selected category (default: type). */
+function custCat(uuid: str): str {
+    if (global custCatOf.hasKeys(uuid)) {
+        return global custCatOf[uuid] as str;
+    }
+    return "cls";
+}
+
+/** Part ids the player may pick for loadout key `key` with loadout lo. */
+function custOptions(key: str, lo: dict): list {
+    if (key == "cls") {
+        return allClasses();
+    }
+    return partsFor(slotOf(key), lo["cls"] as str);
+}
+
+/** Widgets of the customizer for the player. */
+function customScreen(uuid: str): list {
+    line lo = playerLoadout();
+    line cat = custCat(uuid);
+    line out = [
+        menuPanel("topbar", 0, -160, 470, 26, 2, 0.6),
+        menuButton("home", "BACK", -195, -160, 60, 16, "home"),
+        menuButton("settings", "SETTINGS", -125, -160, 66, 16, "settings"),
+        menuButton("shop", "SHOP", 90, -160, 50, 16, "shop"),
+        menuLabel("credits", "CREDITS 0", "text_s", 150, -160, 4),
+        menuLabel("points", "POINTS 0", "text_s", 205, -160, 6),
+        menuPanel("options", -110, 0, 240, 170, 0, 0.5),
+        menuPanel("previewBox", 125, 0, 170, 170, 0, 0.5)
+    ];
+    line keys = custKeys();
+    line labels = custLabels();
+    repeat (line i to line keys.len()) {
+        line key = line keys[line i] as str;
+        line b = menuButton("cat_%var(key)", line labels[line i] as str, -180, -60 + (line i - 1) * 21, 86, 18, "cat %var(key)");
+        if (line key == line cat) {
+            line b["palette"] = 3;
+        }
+        line out.append(line b);
+    }
+    line opts = custOptions(line cat, line lo);
+    repeat (line i to line opts.len()) {
+        line id = line opts[line i] as str;
+        line b = menuButton("pick_%var(id)", partStr(line id, "name").setCase(case="UPPERCASE"), -50, -60 + (line i - 1) * 21, 110, 18, "pick %var(id)");
+        if (line lo[line cat] as str == line id) {
+            line b["palette"] = 6;
+            line b["hover"] = 6;
+        }
+        line out.append(line b);
+    }
+    line st = deriveStats(line lo);
+    line speed = num.floor(st["speed"] as num * 20 * 10) / 10;
+    line hp = num.floor(st["hullHp"] as num);
+    line mass = st["mass"] as num;
+    line out.append(menuLabel("stats", "MASS %var(mass)   SPEED %var(speed)   HULL %var(hp)", "text_s", -110, 75, 1));
+    line out.append(menuPreview("mech", line lo, 125, 0, 150, 150));
+    return line out;
+}
+
+/** Customizer actions; 1 when the action was one of them. */
+function customAction(action: str): num {
+    line uuid = default.uuid;
+    if (action == "home") {
+        menuOpen("main");
+        return 1;
+    }
+    if (action.find("cat ") == 1) {
+        global custCatOf[uuid] = action.replace("cat ", "");
+        menuOpen("custom");
+        return 1;
+    }
+    if (action.find("pick ") == 1) {
+        line id = action.replace("pick ", "");
+        line key = custCat(uuid);
+        line lo = playerLoadout();
+        line lo[line key] = line id;
+        saved "loadout %uuid" = validLoadout(line lo);
+        menuOpen("custom");
+        return 1;
+    }
+    return 0;
+}

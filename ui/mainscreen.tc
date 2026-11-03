@@ -85,9 +85,7 @@ function mainAction(action: str): num {
         return 1;
     }
     if (action == "customize") {
-        menuClose();
-        showLoadout(playerLoadout());
-        default.sendMessage(s"<gray>The robot customizer arrives with MEC-75; edit with <yellow>@loadout</yellow> for now.");
+        menuOpen("custom");
         return 1;
     }
     if (action == "profile" || action == "settings" || action == "party" || action == "shop") {
