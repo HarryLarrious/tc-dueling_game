@@ -101,7 +101,8 @@ function argNum(parts: list, index: num, fallback: num): num {
     return num.parse(parts[index] as str);
 }
 
-/** Chat commands: @mech @sit @clear @cpu @floor @spike @parts @help. */
+/** Chat commands: @mech @sit @clear @cpu @floor @spike @parts @help, and the
+ * pack spike: @pack @hud @menu @model @beep @fx @outline. */
 playerevent command {
     ensureInitialized();
     line parts = event.command.split(" ");
@@ -134,6 +135,20 @@ playerevent command {
         spikeCommand(line parts);
     } else if (line cmd == "parts") {
         partsCommand(line parts);
+    } else if (line cmd == "pack") {
+        packCommand(line parts);
+    } else if (line cmd == "hud") {
+        hudCommand(line parts);
+    } else if (line cmd == "menu") {
+        menuCommand();
+    } else if (line cmd == "model") {
+        modelCommand(line parts);
+    } else if (line cmd == "beep") {
+        beepCommand();
+    } else if (line cmd == "fx") {
+        fxCommand(line parts);
+    } else if (line cmd == "outline") {
+        outlineCommand(line parts);
     } else if (line cmd == "help") {
         mechHelp();
     }
@@ -149,15 +164,25 @@ function mechHelp {
     default.sendMessage(s"<yellow>@clear</yellow> <gray>remove all mechs");
     default.sendMessage(s"<yellow>@spike</yellow> <gray>CPU test rigs and projectiles (see @spike for options)");
     default.sendMessage(s"<yellow>@parts [slot] [class]</yellow> <gray>list the part catalog");
+    default.sendMessage(s"<gold><bold>Pack spike</bold>");
+    default.sendMessage(s"<yellow>@pack [url|status|clear]</yellow> <gray>send the pack, check it, or remove spike entities");
+    default.sendMessage(s"<yellow>@hud [anchor] [palette] | grid | text | off</yellow> <gray>marked glyph or UI text on boss bar 1");
+    default.sendMessage(s"<yellow>@menu</yellow> <gray>seated menu: panel, shader cursor, server hover readout");
+    default.sendMessage(s"<yellow>@model [party]</yellow> <gray>test part swinging about its joint");
+    default.sendMessage(s"<yellow>@beep</yellow> <gray>custom sound");
+    default.sendMessage(s"<yellow>@fx zoom+shake+tint+gray [strength%] [party]|off</yellow> <gray>screen effects via the marker");
+    default.sendMessage(s"<yellow>@outline [party party party]</yellow> <gray>three glowing cubes in party colors");
 }
 
 playerevent join {
     default.setToCreativeMode();
     ensureInitialized();
     ensureLoop();
+    packJoin();
     default.sendMessage(s"<gold>Mechs <gray>- type <yellow>@help</yellow> for commands.");
 }
 
 playerevent dismount {
     leaveMech();
+    menuClose();
 }

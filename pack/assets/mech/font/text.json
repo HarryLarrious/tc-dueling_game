@@ -1,0 +1,10 @@
+{
+  "providers": [
+    {
+      "type": "ttf",
+      "file": "mech:rajdhani-semibold.ttf",
+      "size": 10,
+      "oversample": 4
+    }
+  ]
+}

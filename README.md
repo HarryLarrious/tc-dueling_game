@@ -19,9 +19,27 @@ placeholder hull box, `@cpu` gauge). Next: the Stage 1 spikes in
 | --- | --- |
 | `core/state.tc` | Mech and world state declarations + tunables |
 | `core/loop.tc` | Main loop: per-tick drive, push-out, draw |
-| `core/commands.tc` | `@mech @sit @clear @cpu @floor @parts @help`, boarding |
+| `core/commands.tc` | `@mech @sit @clear @cpu @floor @parts @help`, the pack spike commands, boarding |
 | `mech/chassis.tc` | Spawn, drive, push-out, draw the chassis |
 | `mech/catalog.tc` | Part catalog: one row per prebuilt part (classes, guns, armor, augments, cosmetics), `@parts` |
+| `spike/cpu.tc`, `spike/pack.tc` | Stage 1 spikes: CPU test rigs (`@spike`), pack tests (`@pack @hud @menu @model @beep @fx @outline`); removed by MEC-23 |
 | `combat/ game/ ui/ maps/` | Empty until their stages |
-| `pack/ tools/` | Resource pack source and build script (Stage 1) |
+| `pack/` | Resource pack source (`pack.mcmeta`, `assets/`; `src/` for Blockbench files and asset generators, not shipped) |
+| `pack/assets/minecraft/shaders/core/text.vsh`, `pack/assets/mech/shaders/include/ui.glsl` | Text shader: HUD glyphs, screen-locked menu panels, cursor (marker protocol in PLAN.md, UI and HUD) |
+| `tools/build_pack.py` | Validate the pack, compile its shaders, build `build/mech-pack-<hash>.zip`, publish to `pack-dist` |
+| `tools/shader_variants.json` | Define sets each overridden shader must compile under |
 | `references/` | Mech, weapon and UI art, controls, augments, movement videos |
+
+## Resource pack
+
+```sh
+python3 tools/build_pack.py --check            # validate only
+python3 tools/build_pack.py                    # build build/mech-pack-<hash>.zip
+python3 tools/build_pack.py --publish --push   # add it to the pack-dist branch and push
+```
+
+Shader checks need `glslc` (shaderc) and a Minecraft 26.3 client jar
+(found in the usual launcher folders, or pass `--vanilla <jar>` / set
+`MC_VANILLA`). Published packs load from
+`https://raw.githubusercontent.com/HarryLarrious/tc-mech_game/pack-dist/<file>`;
+`latest.json` on that branch names the newest one.

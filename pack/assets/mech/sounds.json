@@ -1,0 +1,5 @@
+{
+  "test.beep": {
+    "sounds": ["mech:test/beep"]
+  }
+}

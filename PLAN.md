@@ -57,6 +57,11 @@ pattern, the `@cpu` gauge.
   part upgrades. Cosmetic credits are only bought, through DF plot products.
 - **UI ignores FOV and GUI scale and takes mouse input.** A core shader in the
   pack draws it on a fixed virtual canvas (see UI and HUD).
+- **The UI does not look like Minecraft.** UI art and fonts are high
+  resolution and anti-aliased, sampled smooth by our shaders; no pixel art
+  (see UI and HUD, Art quality). The world is built maps and may look like
+  Minecraft (owner, 2026-11-02: "only UI elements need to look like not
+  Minecraft").
 - **The client does the visual work.** Anything purely visual runs on the
   client through the resource pack, core shaders and post effects (see
   Client-side tech). The server computes gameplay state and sends only
@@ -370,11 +375,86 @@ translucent panels and a class cockpit frame (cockpit reference).
 **How it is drawn**
 
 - All UI art is font glyphs (PNG bitmaps) and models in the pack.
+- **Art quality** for UI (owner, 2026-11-02: "high resolution and high
+  quality, something that doesn't look like a Minecraft game", later
+  narrowed to UI elements only):
+  - Glyph art is drawn anti-aliased (rendered 4× and downsampled with
+    premultiplied alpha) at about 4–8 texels per canvas unit: at 1440p one
+    canvas unit is 4 screen pixels, at 4K 6.
+  - A glyph image must be under 255 px a side: the font atlas pages are
+    256×256 with 1 px spacing (`FontTexture`), and a glyph that does not fit
+    becomes the missing-glyph box. Larger art is split into several glyphs
+    laid side by side with spacing glyphs.
+  - Every glyph keeps a 2 px transparent margin, so filtered sampling never
+    reaches a neighbouring glyph in the atlas.
+  - The font atlas sampler is `NEAREST`, so `core/text.fsh` samples marked
+    glyphs itself: bilinear when magnified, a 4-tap footprint average when
+    shrunk, on premultiplied colors (no dark fringes). Unmarked text samples
+    as vanilla.
+  - **UI text** (MEC-97): Rajdhani SemiBold (SIL OFL 1.1, license shipped as
+    `assets/mech/font/rajdhani-ofl.txt`) in three TTF fonts, all
+    `oversample` 4 (about 1:1 at 1440p):
+
+    | Font | Size (canvas units) | Use |
+    | --- | --- | --- |
+    | `mech:text_s` | 7 | small labels, status words |
+    | `mech:text` | 10 | readouts, menu labels |
+    | `mech:text_l` | 16 | big numbers |
+
+    TTF glyphs are grayscale, so they go through the `IS_GRAYSCALE` text
+    variants and the shared filter reads them as `.rrrr`. Text only gets
+    the smooth sampling and canvas placement when it carries a marker color.
+    The plot's chat and other unmarked text keep Minecraft's font (MEC-98).
+    Verified on Plot 206003 (2026-11-02): smooth at GUI scale 1–4, HUD
+    readout (`@hud text`) and menu label (`@menu`) placed correctly.
+  - Mech parts (MEC-19, optional now that only the UI must not look like
+    Minecraft): textures at 16 texels per model unit, sampled filtered by
+    `core/item.fsh` and lit per pixel (sky/ground ambient, a wrapped key
+    light, specular and rim, times the lightmap). GUI items stay vanilla.
 - A **core shader** recognizes marked UI elements and places them on one
   *virtual canvas* scaled to the window height. It cancels the GUI scale and
   uses its own fixed projection instead of the player's FOV, so size and
-  position never change with either setting. The marker (reserved color bits
-  or a dedicated font) is picked in the UI spike.
+  position never change with either setting. The canvas is 360 units tall and
+  as wide as the window's aspect (640 at 16:9); one unit is one font pixel.
+- **Marker: the text color** (`core/text.vsh` + `mech:ui.glsl`, MEC-18):
+
+  | Channel | Value |
+  | --- | --- |
+  | red | kind: `252` HUD glyph in a boss bar title, `248` screen-locked panel, `244` cursor |
+  | green | `128 + 4·a`; HUD: `a = anchor·3 + bar slot` (slot 0–2); panel: `a = anchor`; cursor: `a = 0` |
+  | blue | `128 + 4·c`; `c` = palette index (0 white, 1 grey, 2 dark grey, 3 cyan, 4 amber, 5 red, 6 green) |
+
+  `a` and `c` are 0–30. Anchors 0–8 run in reading order (0 top-left,
+  4 center, 8 bottom-right). The glyph is drawn in its palette color, not the
+  marker color, at full brightness with no fog. Vanilla's text shadow is
+  `color × 0.25`, so a marked glyph's shadow decodes too and the shader hides
+  it. Side effect: on our plot, GUI text colored red ≥ 252 with green and
+  blue in 128–251 loses its shadow; avoid those colors for normal text.
+- **Building glyph text in DF**: text built at run time (computed marker
+  colors) goes through "Parse MiniMessage Expression" with Allowed Tags
+  **Full**; the default "Style Only" drops `<font:mech:ui>` and the glyphs
+  show as missing-glyph boxes.
+- **HUD glyphs**: send the glyph as a boss bar's title. Vanilla centers bar
+  `n`'s title on GUI (width/2, 3 + 19n); the shader keeps each glyph's offset
+  from that point and moves the point to the anchor. The string's center
+  lands on the anchor; shift it with space glyphs. Only bar slots 0–2 can be
+  addressed, and at high GUI scale vanilla stops drawing bars below a third
+  of the screen height.
+- **Menu displays** (panels and the cursor) are text displays placed exactly
+  at the player's eye, yaw 0, pitch 0, billboard fixed, background alpha 0,
+  no shadow, hidden from everyone else. The shader reads each glyph's offset
+  from the display origin (40 canvas units per block, display scale 1) and
+  adds the anchor. A display's translation moves it on the canvas; its z
+  translation orders overlapping panels (smaller z is in front, −0.03 to 1);
+  the cursor is always drawn in front of every panel.
+  Marked glyphs further than 12 blocks from the camera are hidden, so a
+  missed `setEntityHidden` never shows another player's menu.
+- **Cursor mapping** (shader and server must match): with yaw normalized to
+  −180..180 (0 looks +Z),
+  `cursor = (W/2 + 4·yaw, 180 + 4·pitch)` in canvas units, clamped to the
+  canvas. The menu seat faces yaw 0. Hover tests on the server use offsets
+  from the canvas center (`4·yaw`, `4·pitch`), which do not depend on the
+  window's aspect, so clickable panels use the center anchor (4).
 - **Combat HUD on the GUI layer**: boss bars for persistent panels (party
   list, damage schema, weapon panel, minimap), title and action bar for
   transient ones. These are per player by nature and are resent only when a
@@ -391,7 +471,18 @@ translucent panels and a class cockpit frame (cockpit reference).
   once. The server applies the same mapping to the player's yaw and pitch for
   hover and clicks, and `setRotation` holds the camera at the canvas edges.
 - The pack hides vanilla HUD sprites (crosshair, hotbar, hearts, food, XP,
-  boss bar bars) so only our HUD shows.
+  boss bar bars) so only our HUD shows. Done so far: boss bars, the
+  crosshair (combat draws its own) and the hotbar frame, selection and
+  offhand slots.
+- **No hand, no hotbar items**: the player holds one item with the empty
+  model `mech:blank` (`"type": "minecraft:empty"`) in slot 1 and nothing
+  else. With an item in the main hand vanilla does not draw the
+  first-person arm, and the blank item draws nothing in hand or hotbar. Its
+  name is a 1-pixel space glyph so the item-name popup stays empty.
+- **Spacing glyphs** in `mech:ui`: U+F801/F802/F804/F808/F810/F820/F840 move
+  −1/−2/−4/−8/−16/−32/−64 px, U+F821/F822/F824/F828/F830/F860/F880 move
+  +1…+64 px. Following a glyph with minus its advance gives several glyphs
+  one origin.
 - Text entry (party invite by name, loadout names) uses DF dialogs.
 - If your own cockpit shell blocks your first-person view, `setEntityHidden`
   hides it from the pilot only.
@@ -409,7 +500,7 @@ only for gameplay.
 | UI placement, cursor | Core shader: `text` | See UI and HUD |
 | Gunfire, railgun charge, minigun spin-up, footsteps, servos, alarms | Pack: `sounds.json` + OGG files | DF custom sounds |
 | Cockpit screens, hologram panels, muzzle flashes, dome field | Pack: animated textures (`.mcmeta`) | No server cost |
-| Lights, visors and tracers that glow | Core shader: `item` | A reserved alpha value renders full bright (emissive) |
+| Lights, visors and tracers that glow | Model `light_emission` or core shader: `item` | Static glow: the vanilla element field `light_emission: 15`, no shader. Shader glow: texture alpha 250 renders full bright and opaque, 251 the same plus a 1 Hz pulse on `GameTime` |
 | Minigun spin, radar sweep, light pulse | Core shader: `item` | Marked vertices animated by game time |
 | Electrostatic Dome bubble | Core shader: `item` | One billboarded display drawn as a sphere with a bright edge |
 | 3D menu previews | Core shader: `item` | Screen-locked like the menu panels |
@@ -452,7 +543,10 @@ client gives us (decompiled source and shaders in the minecraft-source MCP):
   from the outline image so it doesn't show.
 - **Item tint and light.** `core/item` multiplies the texture by the vertex
   color (custom model data tint) and the lightmap; skipping the lightmap for
-  marked pixels makes them emissive.
+  marked pixels makes them emissive. Normals and positions arrive in
+  camera-relative world axes, so our world lighting is fixed in the world.
+  World items are told apart from GUI items by the projection
+  (`ProjMat[3][3]` is 0 for perspective, 1 for orthographic).
 - **Improved transparency.** With that video option on, translucent text and
   items use order-independent-transparency variants (`OIT_*` defines); test
   the shaders with the option on and off.
@@ -470,6 +564,39 @@ post effect whenever a glowing entity is on screen, and the pack replaces it:
   `setDisplayGlowColor` call; the animation runs on game time in the shader.
 - Post effects run before the GUI is drawn, so the HUD never zooms, shakes or
   blurs.
+- **Marker encoding** (MEC-20, `mech:fx.glsl`), the marker's glow color:
+
+  | Channel | Value |
+  | --- | --- |
+  | red | effects bitmask: 1 zoom (up to 3×), 2 shake, 4 red damage tint with vignette, 8 desaturate |
+  | green | strength 0–255 |
+  | blue | `240 + party`: 0 shows every outline, 1–14 only that party's color, 15 none (solo players) |
+
+  Glow colors with blue ≥ 240 are reserved for the marker.
+- **Party outline colors** (party 1–14; every channel ≤ 230, so never a
+  marker): `#E64040 #E68740 #E6CE40 #B6E640 #6FE640 #40E658 #40E69F #40E6E6
+  #409FE6 #4058E6 #6F40E6 #B640E6 #E640CE #E64087`. A mech glows in its
+  party's color; the filter keeps only the viewer's own party.
+- **How it is drawn**: `core/rendertype_outline.vsh` turns every quad of the
+  marker into a 2×2-pixel square at the outline image's NDC (−1, −1)
+  corner, read back in post passes as texel (0, 0) on either backend.
+  `post_effect/entity_outline.json` runs: `mech:post/fx` (main + outline →
+  `fx`), blit `fx` → `minecraft:main`, `mech:post/outline_filter` (drops the
+  marker and other parties' outlines), then vanilla's sobel, two blurs and
+  blit. The marker display is an item display at scale 0.01 riding the
+  player, hidden from the other players only (hiding it from its owner too
+  and showing it again re-sends it and loses it).
+- **Marker pitfalls found in game** (MEC-20):
+  - Item outlines draw with back-face culling (`OUTLINE_CULL`). The marker
+    square is wound counter-clockwise; clockwise was always culled.
+  - Draws share one vertex buffer and may start at any vertex, so
+    `gl_VertexIndex % 4` is only a corner index up to rotation. A fixed
+    winding survives that; anything that changes per quad (e.g. alternating
+    by `gl_VertexIndex / 4`) breaks quads apart.
+  - Give the marker a real culling box (`setDisplayCullingSize(4, 3)`)
+    instead of 0: vanilla inflates it by 0.5 so it contains the camera, and
+    it stays visible to culling mods (Sodium, EntityCulling) in every view
+    direction.
 
 | Effect | When |
 | --- | --- |
@@ -490,21 +617,54 @@ the marker carries the choice.
 - Source in `pack/` (namespace `mech`: `items/`, `models/`, `textures/`,
   `font/`, `sounds/`; vanilla overrides under `minecraft/`: `shaders/core/`,
   `shaders/post/`, `post_effect/`, HUD sprites), Blockbench sources in
-  `pack/src/`, and `tools/build_pack.py` to zip it and stamp a version.
-- Hosted at a direct-download URL (e.g. a GitHub release asset). Each release
-  gets a new URL so clients never use a cached old pack.
+  `pack/src/` (not shipped). `pack.mcmeta` pins `min_format`/`max_format` to
+  `[97, 1]`; shaders change between versions, so a new client version means a
+  re-test and a new range.
+- `tools/build_pack.py` validates and builds the pack:
+  - JSON parses with no duplicate keys; every asset path is a valid resource
+    location (the game skips bad names silently).
+  - Every shader compiles with `glslc` the way the 26.3 client compiles it
+    (shaderc, Vulkan 1.2, auto-bound uniforms, `#include <ns:path.glsl>` from
+    `shaders/include/`) under every define set in
+    `tools/shader_variants.json`: all subsets of the shader's flags × no OIT
+    and each OIT stage × the device macros on and off. That superset passes
+    on the vanilla shaders. An overridden `minecraft:core/*` shader without an
+    entry fails the build. Vanilla includes are read from a local 26.3 client
+    jar (`--vanilla` or `MC_VANILLA`); they are never committed.
+  - The zip is deterministic and named `mech-pack-<content hash>.zip`.
+- Hosted on the orphan `pack-dist` branch (built zips, `latest.json`, a
+  README; nothing else) and loaded from
+  `https://raw.githubusercontent.com/HarryLarrious/tc-mech_game/pack-dist/<file>`.
+  `build_pack.py --publish` commits there without touching the work tree;
+  `--push` pushes. DF's `sendResourcePack` takes only a URL (no hash), and
+  raw files are cached for 5 minutes, so the content-hash file name is what
+  makes clients fetch a changed pack. An unchanged pack keeps its name.
 - Join flow: `sendResourcePack` → `resourcePackLoad` → menu room;
   `resourcePackDecline` → explain why the pack is needed, offer a retry.
 
 **Model rules**
 
-- Java item models are boxes inside the −16..32 range; element rotation
-  limits depend on DF's client version (check in the spike). Large parts
-  scale up through the display matrix. Each part's joint (hip,
+- Java item models are boxes inside the −16..32 range. In 26.3 an element
+  rotates freely: `"rotation": {"origin": [...], "x": a, "y": b, "z": c}`
+  (any angles, applied X then Y then Z), or the old single `axis` + `angle`.
+  Large parts scale up through the display matrix. Each part's joint (hip,
   knee, shoulder, turret ring) sits at the model center (8, 8, 8), the display
   origin, so matrices rotate parts about their joint. One model per part;
   damaged variants and skins select on custom model data strings, party color
   tints from custom model data colors.
+- **Glow.** An element with `"light_emission": 15` (0–15) renders at full
+  block light with no shader. Pixels for the item shader use alpha 250 (full
+  bright) or 251 (full bright, pulsing). Any alpha other than 0 or 255 inside a face's UV area sends that
+  whole face to the translucent item pipeline (`FaceBakery`), so marked pixels
+  go on their own small faces and the rest of the part stays cutout.
+- **Textures** may be high resolution (16 texels per model unit) and are
+  sampled filtered, so keep UV islands at least 2 texels apart and 2 texels from the
+  texture edge, with their edge colors extended into that gap: a filtered
+  sample at a face edge then never picks up a neighbouring island or the
+  next sprite in the atlas.
+- Item model definitions live in `assets/mech/items/<part>.json`
+  (`setModel(item, "mech:<part>")`); party color is a
+  `minecraft:custom_model_data` tint (index 0) on faces with `tintindex: 0`.
 - Placeholder box models first, art pass later. The in-game walker build is
   the target look for the walker models.
 
@@ -538,6 +698,44 @@ the marker carries the choice.
      second player;
    - a shader cursor that follows the mouse with no lag and matches the
      server's hover mapping.
+
+   Spike assets (MEC-17, generated by `pack/src/spike_assets.py`): item
+   `mech:test_part` (joint housing centered on the display origin, a tinted
+   arm rising from it, a reserved-alpha strip on its north face and a
+   `light_emission` strip on its south face), font `mech:ui` (U+E000 panel
+   64×32, U+E001 cursor 8×8 with its tip at the top-left), sound
+   `mech:test.beep`, and transparent `boss_bar` sprites.
+
+   Results on Plot 206003, 2026-11-02 (owner: "all works"), after the
+   fixes found on the way: glyph MiniMessage needs Allowed Tags Full; the
+   cursor needed its own depth layer; hotbar, hand and crosshair hidden;
+   UI art redone high resolution with filtered sampling.
+
+   Test commands (MEC-21, `spike/pack.tc`): `@pack [url|status|clear]`,
+   `@hud [anchor] [palette] | grid | off`, `@menu`, `@model [party]`,
+   `@beep`, `@fx <zoom+shake+tint+gray> [strength%] [party] | off`,
+   `@outline [party party party]`. Results (fill in on
+   the plot; ✅ pass, ❌ fail + note):
+
+   | Check | Command | Result |
+   | --- | --- | --- |
+   | Pack downloads and loads (`resourcePackLoad` fires) | `@pack` | ✅ also sent on join |
+   | Test part shows, tint follows the party color | `@model 1`…`5` | ✅ |
+   | Joint stays still while the arm swings | `@model` | ✅ |
+   | `light_emission` strip bright in the dark | `@model` at night | ✅ |
+   | Custom sound plays | `@beep` | ✅ |
+   | Boss bar shows only its title (sprites hidden, shadow hidden) | `@hud` | ✅ |
+   | HUD glyphs keep their screen spot at GUI scale 1–4 | `@hud grid` | ✅ |
+   | … and at FOV 30–110 | `@hud grid` | ✅ |
+   | Menu panel locked while the camera turns | `@menu` | ✅ |
+   | Cursor follows the mouse with no lag | `@menu` | ✅ drawn above the panel |
+   | Server hover matches the visible cursor (panel turns cyan) | `@menu` | ✅ |
+   | Menu hidden from a second player | `@menu` + 2nd player | — |
+   | All of the above with improved transparency on | — | item glow ✅; UI not checked yet |
+   | Emissive pixel and game-time animation | `@model` (MEC-19) | ✅ 250 glows, 251 pulses, also with improved transparency |
+   | High-res part texture smooth, world lighting on parts | `@model` (MEC-19) | ✅ |
+   | Marker glow drives zoom/shake, HUD unaffected | `@fx zoom+shake 60` | ✅ zoom, shake, tint, gray, any view direction |
+   | Only the party color's outlines show | `@outline`, `@fx zoom 0 2` | ✅ |
 5. **Controls spike**: on an interaction-entity seat, confirm every row of the
    controls table: cancelled `dismount` keeps the pilot seated and shift is
    still readable; space while riding; holding right click with the control
@@ -654,6 +852,9 @@ the marker carries the choice.
   mech parts and test at the map's longest lines.
 - **Players must accept the pack.** Without it, mechs and UI are missing or
   broken, so the game gates on `isUsingResourcePack`.
+- **`pack-dist` grows with every release.** Each published zip stays in the
+  branch history. Fine while packs are small; once art lands, prune old zips
+  from the branch tip and keep the last few the plot might still reference.
 - **Plot products.** Cosmetic credits depend on DF's plot product system;
   check what DF allows a product to grant before building the store.
 - **Per-player hiding must stay complete.** Every menu entity has to be hidden
@@ -686,3 +887,6 @@ the marker carries the choice.
 8. Do pilots ever leave the mech mid-match, Titanfall-style? [no]
 9. Who makes the final models and sounds? [placeholder boxes and stock sounds
    first; final art in Blockbench]
+10. Replace `minecraft:default` (all text on the plot: chat, signs, DF
+    messages) with the UI's TTF font, or only use it for marked UI text?
+    [only UI text; chat stays readable and familiar]
