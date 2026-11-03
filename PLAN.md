@@ -638,6 +638,11 @@ the marker carries the choice.
    64×32, U+E001 cursor 8×8 with its tip at the top-left), sound
    `mech:test.beep`, and transparent `boss_bar` sprites.
 
+   Results on Plot 206003, 2026-11-02 (owner: "all works"), after the
+   fixes found on the way: glyph MiniMessage needs Allowed Tags Full; the
+   cursor needed its own depth layer; hotbar, hand and crosshair hidden;
+   UI art redone high resolution with filtered sampling.
+
    Test commands (MEC-21, `spike/pack.tc`): `@pack [url|status|clear]`,
    `@hud [anchor] [palette] | grid | off`, `@menu`, `@model [party]`,
    `@beep`, `@fx <hex>|off`, `@outline [hex hex hex]`. Results (fill in on
@@ -645,17 +650,17 @@ the marker carries the choice.
 
    | Check | Command | Result |
    | --- | --- | --- |
-   | Pack downloads and loads (`resourcePackLoad` fires) | `@pack` | — |
-   | Test part shows, tint follows the party color | `@model 1`…`5` | — |
-   | Joint stays still while the arm swings | `@model` | — |
+   | Pack downloads and loads (`resourcePackLoad` fires) | `@pack` | ✅ also sent on join |
+   | Test part shows, tint follows the party color | `@model 1`…`5` | ✅ |
+   | Joint stays still while the arm swings | `@model` | ✅ |
    | `light_emission` strip bright in the dark | `@model` at night | — |
-   | Custom sound plays | `@beep` | — |
-   | Boss bar shows only its title (sprites hidden, shadow hidden) | `@hud` | — |
-   | HUD glyphs keep their screen spot at GUI scale 1–4 | `@hud grid` | — |
-   | … and at FOV 30–110 | `@hud grid` | — |
-   | Menu panel locked while the camera turns | `@menu` | — |
-   | Cursor follows the mouse with no lag | `@menu` | — |
-   | Server hover matches the visible cursor (panel turns cyan) | `@menu` | — |
+   | Custom sound plays | `@beep` | ✅ |
+   | Boss bar shows only its title (sprites hidden, shadow hidden) | `@hud` | ✅ |
+   | HUD glyphs keep their screen spot at GUI scale 1–4 | `@hud grid` | ✅ |
+   | … and at FOV 30–110 | `@hud grid` | ✅ |
+   | Menu panel locked while the camera turns | `@menu` | ✅ |
+   | Cursor follows the mouse with no lag | `@menu` | ✅ drawn above the panel |
+   | Server hover matches the visible cursor (panel turns cyan) | `@menu` | ✅ |
    | Menu hidden from a second player | `@menu` + 2nd player | — |
    | All of the above with improved transparency on | — | — |
    | Emissive pixel and game-time animation | needs MEC-19 | — |
