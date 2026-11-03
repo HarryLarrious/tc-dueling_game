@@ -121,6 +121,15 @@ Each class has a fixed skeleton. A loadout picks one prebuilt part per slot:
   HP, mass, hitbox shape + local transform, joint pivot, and stats (guns:
   damage, cooldown, projectile speed, gravity, spread, splash, recoil; armor:
   reduction, HP bonus; augments: cooldown, duration, radius).
+  Built in `mech/catalog.tc` (MEC-31): `global partCatalog` maps part id to a
+  flat dict row; `partOrder` keeps catalog order. Field names and units are
+  in the file header (ticks, blocks, blocks per tick, degrees; gun size is
+  `sizeClass`, hitbox is `shape`/`size`/`offset`/`pivot`). The class row is
+  the hull part and carries the class's base movement stats and the main gun
+  sizes it accepts. Read rows with `partNum`/`partStr`; `partAllows(id,
+  class)` and `partsFor(slot, class)` apply the class rules. Bump
+  `catalogVersion()` after editing the data so plots rebuild it. `@parts
+  [slot] [class]` lists the catalog. First-pass numbers, balanced in play.
 - **Derived stats** (speed, acceleration, turn and traverse rates, mass) are
   computed when a loadout changes, never per tick.
 - **Upgrades**: each part has an upgrade tree, bought with upgrade points,

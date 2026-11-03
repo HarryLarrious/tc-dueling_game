@@ -19,8 +19,9 @@ placeholder hull box, `@cpu` gauge). Next: the Stage 1 spikes in
 | --- | --- |
 | `core/state.tc` | Mech and world state declarations + tunables |
 | `core/loop.tc` | Main loop: per-tick drive, push-out, draw |
-| `core/commands.tc` | `@mech @sit @clear @cpu @floor @help`, boarding |
+| `core/commands.tc` | `@mech @sit @clear @cpu @floor @parts @help`, boarding |
 | `mech/chassis.tc` | Spawn, drive, push-out, draw the chassis |
+| `mech/catalog.tc` | Part catalog: one row per prebuilt part (classes, guns, armor, augments, cosmetics), `@parts` |
 | `combat/ game/ ui/ maps/` | Empty until their stages |
 | `pack/ tools/` | Resource pack source and build script (Stage 1) |
 | `references/` | Mech, weapon and UI art, controls, augments, movement videos |

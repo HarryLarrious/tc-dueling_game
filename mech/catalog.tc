@@ -1,0 +1,222 @@
+// Part catalog (PLAN.md, Parts and loadouts): one data row per prebuilt part.
+// A row is a flat dict. Every row has name, slot, classes, models, hp, mass
+// and a hitbox (shape, size, offset, pivot); the rest depends on the slot.
+// Units: ticks, blocks, blocks per tick, degrees. The numbers are first-pass
+// tunables, to be balanced in play.
+//
+//   slot "type" (the class): legs, speed, accel, turn, traverse, step,
+//     space ("jump" or "boost"), mainSizes, climbs
+//   slot "main" / "secondary" (guns): sizeClass, damage, cooldown, shotSpeed,
+//     gravity, spread, splash, recoil, zoom, burst, burstGap
+//   slot "armor": reduction (0..1 of incoming damage), hpBonus (fraction of
+//     part HP added)
+//   slot "augment": cooldown, duration, radius
+//   slot "cosmetic": no stats
+
+/** Part id -> row (see the file comment). */
+declare global partCatalog: dict;
+/** Part ids in catalog order, for listings and menus. */
+declare global partOrder: list[str];
+/** catalogVersion() the catalog was last built with. */
+declare global catalogBuilt: num;
+
+/** Bump when the catalog data changes, so plots rebuild it. */
+function catalogVersion(): num {
+    return 1;
+}
+
+/** Builds the catalog unless it is already at catalogVersion(). */
+function ensureCatalog {
+    if (global catalogBuilt != catalogVersion()) {
+        buildCatalog();
+        global catalogBuilt = catalogVersion();
+    }
+}
+
+/** Every class, in menu order. */
+function allClasses(): list {
+    return ["walker", "sprinter", "crawler", "spider"];
+}
+
+/** Stores a row under its id, keeping catalog order. */
+function putPart(id: str, row: dict) {
+    global partCatalog[id] = row;
+    if (global partOrder.find(id) == 0) {
+        global partOrder.append(id);
+    }
+}
+
+/** A class row: the hull part, its skeleton and its base movement stats.
+ * hullSize is the hull hitbox (box, blocks, x side, y up, z forward). */
+function addClass(id: str, name: str, legs: num, hp: num, mass: num, speed: num, accel: num, turn: num, traverse: num,
+        step: num, space: str, mainSizes: list, climbs: num, hullSize: vec) {
+    putPart(id, {
+        name: name, slot: "type", classes: [id], models: ["mech:%var(id)_hull"], hp: hp, mass: mass,
+        shape: "box", size: hullSize, offset: vec(0, 0, 0), pivot: vec(0, 0, 0),
+        legs: legs, speed: speed, accel: accel, turn: turn, traverse: traverse, step: step,
+        space: space, mainSizes: mainSizes, climbs: climbs
+    });
+}
+
+/** A gun row (slot "main" or "secondary"). Its hitbox is a box from the
+ * mount pivot forward along the barrel. */
+function addGun(id: str, name: str, slot: str, size: str, classes: list, hp: num, mass: num, damage: num, cooldown: num,
+        shotSpeed: num, gravity: num, spread: num, splash: num, recoil: num, zoom: num, burst: num, burstGap: num,
+        boxSize: vec) {
+    putPart(id, {
+        name: name, slot: slot, classes: classes, models: ["mech:%var(id)"], hp: hp, mass: mass,
+        shape: "box", size: boxSize, offset: vec(0, 0, boxSize.z * 0.5), pivot: vec(0, 0, 0),
+        sizeClass: size, damage: damage, cooldown: cooldown, shotSpeed: shotSpeed, gravity: gravity,
+        spread: spread, splash: splash, recoil: recoil, zoom: zoom, burst: burst, burstGap: burstGap
+    });
+}
+
+/** An armor row: no hitbox of its own, it modifies the other parts. */
+function addArmor(id: str, name: str, classes: list, mass: num, reduction: num, hpBonus: num) {
+    putPart(id, {
+        name: name, slot: "armor", classes: classes, models: ["mech:%var(id)"], hp: 0, mass: mass,
+        shape: "none", size: vec(0, 0, 0), offset: vec(0, 0, 0), pivot: vec(0, 0, 0),
+        reduction: reduction, hpBonus: hpBonus
+    });
+}
+
+/** An augment row: a small module box on the hull that can be shot off. */
+function addAugment(id: str, name: str, cooldown: num, duration: num, radius: num) {
+    putPart(id, {
+        name: name, slot: "augment", classes: allClasses(), models: ["mech:aug_%var(id)"], hp: 40, mass: 2,
+        shape: "box", size: vec(0.5, 0.5, 0.5), offset: vec(0, 0, 0), pivot: vec(0, 0, 0),
+        cooldown: cooldown, duration: duration, radius: radius
+    });
+}
+
+/** A cosmetic row: custom model data only, no stats, no hitbox. */
+function addCosmetic(id: str, name: str) {
+    putPart(id, {
+        name: name, slot: "cosmetic", classes: allClasses(), models: [], hp: 0, mass: 0,
+        shape: "none", size: vec(0, 0, 0), offset: vec(0, 0, 0), pivot: vec(0, 0, 0)
+    });
+}
+
+/** Rebuilds the whole catalog. Called from ensureInitialized. */
+function buildCatalog {
+    global partCatalog = {};
+    global partOrder = [];
+
+    // Classes: id, name, legs, hull HP, mass, speed, accel, turn, traverse,
+    // step height, space action, allowed main gun sizes, climbs walls, hull box.
+    addClass("walker", "Walker", 2, 400, 40, 0.18, 0.02, 4, 6, 1.0, "boost", ["heavy"], 0, vec(2.0, 1.6, 2.4));
+    addClass("sprinter", "Sprinter", 2, 220, 22, 0.32, 0.04, 7, 9, 1.0, "jump", ["light", "medium"], 0, vec(1.6, 1.3, 2.0));
+    addClass("crawler", "Crawler", 6, 480, 55, 0.14, 0.015, 3, 3, 1.5, "boost", ["heavy"], 0, vec(3.0, 1.2, 3.2));
+    addClass("spider", "Spider", 4, 150, 14, 0.30, 0.05, 9, 10, 1.2, "jump", ["light", "medium", "heavy"], 1, vec(1.4, 0.8, 1.6));
+
+    // Guns: id, name, slot, size, classes, HP, mass, damage, cooldown,
+    // projectile speed, gravity, spread, splash radius, recoil, aim zoom,
+    // burst rounds, ticks between burst rounds, hitbox box.
+    addGun("railgun", "Railgun", "main", "heavy", ["walker", "crawler", "spider"], 90, 8,
+        120, 80, 6.0, 0.002, 0.1, 0, 1.2, 3.0, 1, 0, vec(0.6, 0.6, 3.0));
+    addGun("autocannon", "Autocannon", "main", "medium", ["sprinter", "spider"], 75, 6,
+        30, 12, 4.0, 0.02, 0.8, 1.0, 0.4, 2.0, 1, 0, vec(0.5, 0.5, 2.2));
+    addGun("lmg", "Light machine gun", "main", "light", ["sprinter", "spider"], 60, 4,
+        6, 2, 3.0, 0.01, 2.5, 0, 0.05, 1.5, 1, 0, vec(0.4, 0.4, 1.8));
+    addGun("cal50", ".50 cal deck gun", "secondary", "light", allClasses(), 50, 3,
+        25, 15, 3.5, 0.015, 0.5, 0, 0.3, 1.5, 1, 0, vec(0.3, 0.3, 1.4));
+    addGun("grenade", "Grenade launcher", "secondary", "light", allClasses(), 50, 4,
+        40, 30, 1.5, 0.06, 1.0, 3.5, 0.3, 1.25, 1, 0, vec(0.5, 0.5, 1.0));
+    addGun("burst", "Machine burst", "secondary", "light", allClasses(), 50, 3,
+        5, 25, 3.0, 0.01, 2.0, 0, 0.05, 1.5, 5, 2, vec(0.4, 0.4, 0.8));
+
+    // Armor: id, name, classes, mass, damage reduction, HP bonus.
+    addArmor("armor_light", "Light plating", allClasses(), 2, 0.1, 0.1);
+    addArmor("armor_medium", "Medium plating", ["walker", "sprinter", "crawler"], 6, 0.2, 0.25);
+    addArmor("armor_heavy", "Heavy plating", ["walker", "crawler"], 12, 0.3, 0.45);
+
+    // Augments: id, name, cooldown, duration, radius (ticks, blocks).
+    addAugment("blackpowder", "Black Powder", 400, 0, 0);
+    addAugment("dome", "Electrostatic Dome", 600, 160, 4);
+    addAugment("hmp", "HMP Unit", 600, 300, 0);
+    addAugment("emp", "EMP Engine", 500, 120, 6);
+    addAugment("hrb", "HRB Cannon", 900, 40, 5);
+    addAugment("repair", "Internal Repair Torch", 900, 300, 0);
+
+    addCosmetic("paint_default", "Factory paint");
+}
+
+/** Row of part id, or an empty dict when there is no such part. */
+function partRow(id: str): dict {
+    if (!global partCatalog.hasKeys(id)) {
+        return {};
+    }
+    return global partCatalog[id] as dict;
+}
+
+/** Number field of a part (0 when missing). */
+function partNum(id: str, key: str): num {
+    line row = partRow(id);
+    if (!line row.hasKeys(key)) {
+        return 0;
+    }
+    return line row[key] as num;
+}
+
+/** Text field of a part ("" when missing). */
+function partStr(id: str, key: str): str {
+    line row = partRow(id);
+    if (!line row.hasKeys(key)) {
+        return "";
+    }
+    return line row[key] as str;
+}
+
+/** 1 when class cls may fit part id. Main guns also need a size the class allows. */
+function partAllows(id: str, cls: str): num {
+    line row = partRow(id);
+    if (!line row.hasKeys("classes")) {
+        return 0;
+    }
+    if ((line row["classes"] as list).find(cls) == 0) {
+        return 0;
+    }
+    if (partStr(id, "slot") == "main") {
+        line sizes = partRow(cls)["mainSizes"] as list;
+        if (line sizes.find(partStr(id, "sizeClass")) == 0) {
+            return 0;
+        }
+    }
+    return 1;
+}
+
+/** Part ids for a slot that class cls may fit, in catalog order. */
+function partsFor(slot: str, cls: str): list {
+    line out = [];
+    for (line id of global partOrder) {
+        if (partStr(line id as str, "slot") == slot && partAllows(line id as str, cls) == 1) {
+            line out.append(line id);
+        }
+    }
+    return line out;
+}
+
+/** @parts [slot] [class]: lists the catalog, optionally filtered. */
+function partsCommand(parts: list) {
+    line slot = "";
+    line cls = "";
+    if (parts.len() >= 2) {
+        line slot = parts[2] as str;
+    }
+    if (parts.len() >= 3) {
+        line cls = parts[3] as str;
+    }
+    line count = 0;
+    for (line id of global partOrder) {
+        line pid = line id as str;
+        line pslot = partStr(line pid, "slot");
+        if ((line slot == "" || line pslot == line slot) && (line cls == "" || partAllows(line pid, line cls) == 1)) {
+            line name = partStr(line pid, "name");
+            line hp = partNum(line pid, "hp");
+            line mass = partNum(line pid, "mass");
+            default.sendMessage(s"<yellow>%var(pid)</yellow> <gray>%var(pslot) <white>%var(name)</white> hp %var(hp) mass %var(mass)");
+            line count += 1;
+        }
+    }
+    default.sendMessage(s"<gray>%var(count) part(s). Slots: type main secondary armor augment cosmetic.");
+}

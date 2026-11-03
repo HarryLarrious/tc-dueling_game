@@ -7,6 +7,7 @@ function ensureInitialized {
         global floorSet = 0;
         global initialized = 6;
     }
+    ensureCatalog();
 }
 
 /** Default tunables. */
@@ -100,7 +101,7 @@ function argNum(parts: list, index: num, fallback: num): num {
     return num.parse(parts[index] as str);
 }
 
-/** Chat commands: @mech @sit @clear @cpu @floor @spike @help. */
+/** Chat commands: @mech @sit @clear @cpu @floor @spike @parts @help. */
 playerevent command {
     ensureInitialized();
     line parts = event.command.split(" ");
@@ -131,6 +132,8 @@ playerevent command {
     } else if (line cmd == "spike") {
         ensureLoop();
         spikeCommand(line parts);
+    } else if (line cmd == "parts") {
+        partsCommand(line parts);
     } else if (line cmd == "help") {
         mechHelp();
     }
@@ -145,6 +148,7 @@ function mechHelp {
     default.sendMessage(s"<yellow>@cpu</yellow> <gray>plot CPU usage; also shown on your action bar each tick");
     default.sendMessage(s"<yellow>@clear</yellow> <gray>remove all mechs");
     default.sendMessage(s"<yellow>@spike</yellow> <gray>CPU test rigs and projectiles (see @spike for options)");
+    default.sendMessage(s"<yellow>@parts [slot] [class]</yellow> <gray>list the part catalog");
 }
 
 playerevent join {
