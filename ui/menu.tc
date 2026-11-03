@@ -93,15 +93,9 @@ function menuRemoveEnt(ent: str) {
     privForget(ent);
 }
 
-/** Widgets of screen `id` (the main screen until MEC-73 replaces it). */
+/** Widgets of screen `id` for the player. Screens: "main" (ui/mainscreen.tc). */
 function menuScreen(id: str): list {
-    return [
-        menuPanel("bg", 0, 0, 160, 124, 0, 0.5),
-        menuLabel("title", "MECHS", "text_l", 0, -36, 3),
-        menuButton("play", "PLAY", 0, -6, 90, 18, "play"),
-        menuButton("loadout", "LOADOUT", 0, 16, 90, 18, "loadout"),
-        menuButton("close", "CLOSE", 0, 38, 90, 18, "close")
-    ];
+    return mainScreen(default.uuid);
 }
 
 /** Opens (or switches the player's menu to) screen `id`. */
@@ -294,11 +288,8 @@ function menuAction(action: str) {
     global menuLastAction = action;
     if (action == "close" || action == "back") {
         menuClose();
-    } else if (action == "loadout") {
-        menuClose();
-        showLoadout(playerLoadout());
-    } else if (action == "play") {
-        default.sendMessage(s"<gray>Queues arrive with the queue selector (MEC-74).");
+    } else {
+        mainAction(action);
     }
 }
 

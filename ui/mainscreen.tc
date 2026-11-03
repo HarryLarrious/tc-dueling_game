@@ -1,0 +1,97 @@
+// Main menu screen (MEC-73), after references/ui references/menu/mock up/
+// main screen.png: a top bar (profile, settings, party | shop, cosmetic
+// credits, upgrade points), the map selector, PLAY (queue selector,
+// MEC-74), CUSTOMIZE (robot customizer, MEC-75) and the party panel. Kept
+// within 230 canvas units of the center so 4:3 windows show it all. The
+// party display is text until menus can show 3D mechs (MEC-103); credits
+// read 0 until saved player data (MEC-78).
+
+/** Map picked per player on the main screen (uuid -> index in mapNames()). */
+declare global mapPickOf: dict;
+
+/** Playable maps, in selector order (the first map arrives with MEC-64). */
+function mapNames(): list {
+    return ["PROVING GROUNDS"];
+}
+
+/** Name of the map the player has picked. */
+function pickedMap(uuid: str): str {
+    line maps = mapNames();
+    line i = 1;
+    if (global mapPickOf.hasKeys(uuid)) {
+        line i = global mapPickOf[uuid] as num;
+    }
+    return line maps[num.clamp(line i, 1, line maps.len())] as str;
+}
+
+/** A button drawn on its own panel (two widgets). */
+function boxedButton(id: str, text: str, x: num, y: num, w: num, h: num, action: str): list {
+    return [menuPanel("%var(id)Box", x, y, w, h, 2, 0.3), menuButton(id, text, x, y, w, h, action)];
+}
+
+/** Widgets of the main screen for the player. */
+function mainScreen(uuid: str): list {
+    line cls = (playerLoadout()["cls"] as str).setCase(case="UPPERCASE");
+    line out = [
+        // Top bar.
+        menuPanel("topbar", 0, -160, 470, 26, 2, 0.6),
+        menuButton("profile", "PROFILE", -195, -160, 60, 16, "profile"),
+        menuButton("settings", "SETTINGS", -125, -160, 66, 16, "settings"),
+        menuButton("party", "PARTY", -60, -160, 50, 16, "party"),
+        menuButton("shop", "SHOP", 90, -160, 50, 16, "shop"),
+        menuLabel("credits", "CREDITS 0", "text_s", 150, -160, 4),
+        menuLabel("points", "POINTS 0", "text_s", 205, -160, 6),
+        // Map selector.
+        menuPanel("mapbox", -150, -20, 150, 90, 0, 0.5),
+        menuLabel("mapTitle", "MAP", "text_s", -150, -55, 1),
+        menuLabel("mapName", pickedMap(uuid), "text", -150, -20, 0),
+        menuButton("mapPrev", "<", -212, -20, 18, 30, "map prev"),
+        menuButton("mapNext", ">", -88, -20, 18, 30, "map next"),
+        // Party.
+        menuPanel("partybox", 100, 10, 220, 150, 0, 0.5),
+        menuLabel("partyTitle", "PARTY", "text_s", 100, -55, 1),
+        menuLabel("member1", "YOU   %var(cls)", "text", 100, -25, 3)
+    ];
+    for (line w of boxedButton("play", "PLAY", -150, 45, 150, 22, "queue")) {
+        line out.append(line w);
+    }
+    for (line w of boxedButton("customize", "CUSTOMIZE", -150, 75, 150, 22, "customize")) {
+        line out.append(line w);
+    }
+    return line out;
+}
+
+/** Main screen actions; 1 when the action was one of them. */
+function mainAction(action: str): num {
+    line uuid = default.uuid;
+    if (action == "map prev" || action == "map next") {
+        line n = mapNames().len();
+        line i = 1;
+        if (global mapPickOf.hasKeys(uuid)) {
+            line i = global mapPickOf[uuid] as num;
+        }
+        if (action == "map next") {
+            line i = line i % line n + 1;
+        } else {
+            line i = (line i + line n - 2) % line n + 1;
+        }
+        global mapPickOf[uuid] = line i;
+        menuOpen("main");
+        return 1;
+    }
+    if (action == "queue") {
+        default.sendMessage(s"<gray>The queue selector arrives with MEC-74.");
+        return 1;
+    }
+    if (action == "customize") {
+        menuClose();
+        showLoadout(playerLoadout());
+        default.sendMessage(s"<gray>The robot customizer arrives with MEC-75; edit with <yellow>@loadout</yellow> for now.");
+        return 1;
+    }
+    if (action == "profile" || action == "settings" || action == "party" || action == "shop") {
+        default.sendMessage(s"<gray>%var(action) arrives with its own screen (MEC-81, MEC-76, MEC-77, MEC-79).");
+        return 1;
+    }
+    return 0;
+}

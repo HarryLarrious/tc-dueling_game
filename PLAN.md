@@ -579,7 +579,10 @@ translucent panels and a class cockpit frame (cockpit reference).
   through `core/input.tc` (the one place for click/scroll events: menus now,
   firing for MEC-42): left click runs the hovered button's action in
   `menuAction`, right click is "back", hotbar scroll is "scroll up/down".
-  Screens are added in `menuScreen`. Found in game (2026-11-03):
+  Screens are added in `menuScreen`; the main screen (`ui/mainscreen.tc`,
+  MEC-73) has the top bar, map selector, PLAY, CUSTOMIZE and a text party
+  panel (3D party mechs wait for MEC-103), all within 230 canvas units of
+  the center so 4:3 windows show it. Found in game (2026-11-03):
   `setRotation` does not turn a player who rides a seat, so the canvas-edge
   clamp likely does nothing; the cursor just stops at the canvas edge in the
   shader (clamped there).

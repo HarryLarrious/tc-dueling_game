@@ -267,18 +267,19 @@ function runSelfTest {
     }
     check("cockpit hidden", line gone, "still there", "removed");
 
-    // Menu (MEC-72): open, hover by aiming, click, close.
+    // Menu (MEC-72) and main screen (MEC-73): open, hit tests at canvas
+    // points (a seated player cannot be turned with setRotation), clicks.
     menuOpen("main");
     checkNum("menu open", menuIsOpen(line me), 1, 0);
-    checkNum("menu widgets", ((global menuOf[line me] as dict)["widgets"] as list).len(), 5, 0);
-    // A seated player cannot be turned with setRotation, so test the hit
-    // test at canvas points (the cursor point is 4 units per degree).
-    checkStr("menu hit play", menuHitAt(vec(0, -6, 0)), "play");
-    checkStr("menu hit close", menuHitAt(vec(30, 40, 0)), "close");
-    checkStr("menu hit nothing", menuHitAt(vec(70, 40, 0)), "");
-    menuClickAt(vec(0, 38, 0));
-    checkStr("menu click runs action", global menuLastAction, "close");
-    checkNum("menu closed", menuIsOpen(line me), 0, 0);
+    checkNum("main screen widgets", ((global menuOf[line me] as dict)["widgets"] as list).len(), 19, 0);
+    checkStr("hit play", menuHitAt(vec(0 - 150, 45, 0)), "play");
+    checkStr("hit settings", menuHitAt(vec(0 - 125, 0 - 160, 0)), "settings");
+    checkStr("hit nothing", menuHitAt(vec(0, 100, 0)), "");
+    menuClickAt(vec(0 - 88, 0 - 20, 0));
+    checkStr("map next runs", global menuLastAction, "map next");
+    checkStr("map still picked", pickedMap(line me), "PROVING GROUNDS");
+    menuAction("back");
+    checkNum("back closes the menu", menuIsOpen(line me), 0, 0);
 
     hudReset(default.uuid);
     hudDemo(default.uuid);
