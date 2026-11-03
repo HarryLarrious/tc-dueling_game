@@ -2,10 +2,12 @@
 
 /** One-time setup the first time any code runs on the plot. */
 function ensureInitialized {
-    if (global initialized != 6) {
+    if (global initialized != 7) {
+        // 7: mechs carry a loadout, stats and hull size; older mechs can't be drawn.
+        clearMechs();
         resetConfig();
         global floorSet = 0;
-        global initialized = 6;
+        global initialized = 7;
     }
     ensureCatalog();
 }
@@ -18,7 +20,6 @@ function resetConfig {
     global turnEase = 0.7;
     global idleEase = 0.3;
     global arenaR = 25;
-    global bodySize = vec(2, 1.5, 2);
 }
 
 /** Removes every mech entity and empties the mech lists. */
@@ -38,6 +39,10 @@ function clearMechs {
     global mSeat = [];
     global mDriver = [];
     global mBody = [];
+    global mLoadout = [];
+    global mClass = [];
+    global mStats = [];
+    global mSize = [];
     global mAlive = [];
     global mCount = 0;
 }
@@ -101,7 +106,7 @@ function argNum(parts: list, index: num, fallback: num): num {
     return num.parse(parts[index] as str);
 }
 
-/** Chat commands: @mech @sit @clear @cpu @floor @spike @parts @help, and the
+/** Chat commands: @mech @loadout @sit @clear @cpu @floor @spike @parts @help, and the
  * pack spike: @pack @hud @menu @model @beep @fx @outline. */
 playerevent command {
     ensureInitialized();
@@ -110,7 +115,14 @@ playerevent command {
 
     if (line cmd == "mech") {
         ensureLoop();
-        spawnChassis();
+        // @mech spawns your loadout; @mech <class> that class's default loadout.
+        line lo = playerLoadout();
+        if (line parts.len() >= 2) {
+            line lo = defaultLoadout(line parts[2] as str);
+        }
+        spawnMech(line lo);
+    } else if (line cmd == "loadout") {
+        loadoutCommand(line parts);
     } else if (line cmd == "sit") {
         ensureLoop();
         line c = argNum(line parts, 2, 0);
@@ -156,7 +168,8 @@ playerevent command {
 
 function mechHelp {
     default.sendMessage(s"<gold><bold>Mechs</bold>");
-    default.sendMessage(s"<yellow>@mech</yellow> <gray>spawn a test chassis 6 blocks ahead");
+    default.sendMessage(s"<yellow>@mech [class]</yellow> <gray>spawn your loadout (or a class's default) 6 blocks ahead");
+    default.sendMessage(s"<yellow>@loadout [class|main|secondary|armor|aug1|aug2|cosmetic <id> | reset]</yellow> <gray>show or edit your loadout");
     default.sendMessage(s"<yellow>@sit [mech]</yellow> <gray>board that mech, or the nearest one");
     default.sendMessage(s"<yellow>W/S</yellow> <gray>drive forward/back, <yellow>A/D</yellow> strafe, sneak to get out");
     default.sendMessage(s"<yellow>@floor</yellow> <gray>set the floor plane and arena center at your feet");

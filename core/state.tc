@@ -19,6 +19,13 @@ declare global mSeat: list[str];
 declare global mDriver: list[str];
 /** UUID of the placeholder hull display until pack models replace it. */
 declare global mBody: list[str];
+/** Loadout (mech/loadout.tc) each mech was spawned with, and its class. */
+declare global mLoadout: list[dict];
+declare global mClass: list[str];
+/** Derived stats of that loadout (deriveStats), computed once at spawn. */
+declare global mStats: list[dict];
+/** Placeholder hull size in blocks: x = forward, y = up, z = side. */
+declare global mSize: list[vec];
 
 /** World: floor height and the arena circle centered where @floor was set. */
 declare global floorY: num;
@@ -39,5 +46,3 @@ declare global seatHover: num;
 declare global mechPower: num;
 declare global turnEase: num;
 declare global idleEase: num;
-/** Placeholder hull size in blocks: x = forward, y = up, z = side. */
-declare global bodySize: vec;
