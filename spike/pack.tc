@@ -22,7 +22,7 @@ declare global "fxMark %uuid": str;
 
 /** The newest pack on pack-dist (tools/build_pack.py --publish prints it). */
 function defaultPackUrl(): str {
-    return "https://raw.githubusercontent.com/HarryLarrious/tc-mech_game/pack-dist/mech-pack-896d40ef4df4.zip";
+    return "https://raw.githubusercontent.com/HarryLarrious/tc-mech_game/pack-dist/mech-pack-d996ff26d3b0.zip";
 }
 
 /** Two uppercase hex digits for n in 0..255. */
@@ -218,12 +218,13 @@ function menuCommand {
     game.spawnTextDisplay(line at, uiGlyph("", uiColor(244, 0, 0)));
     global "menuCursor %uuid" = lastEntity.uuid;
     menuDisplay(lastEntity.uuid);
-    // Put the cursor's tip (glyph pixel 0,0 sits at canvas -2.5, -10 from
-    // the display origin) on the look point: +2.5, +10 canvas units.
+    // Put the cursor's tip on the look point: the tip sits at canvas
+    // -2.75, -13.75 from the display origin (pack/src/spike_assets.py prints
+    // it), so move +2.75, +13.75 canvas units = 0.06875, -0.34375 blocks.
     select entitiesByName(global "menuCursor %uuid");
     selectedEntity.setDisplayTransformationMatrix([
-        1, 0, 0, 0.0625,
-        0, 1, 0, -0.25,
+        1, 0, 0, 0.06875,
+        0, 1, 0, -0.34375,
         0, 0, 1, 0,
         0, 0, 0, 1
     ]);
@@ -255,9 +256,10 @@ function menuClose {
 }
 
 /** True when canvas offset (x, y) from the center anchor is on the panel.
- * The panel glyph (64x32, ascent 16) spans x -31.5..32.5, y -18..14. */
+ * The panel's visible art spans x -31..32, y -17.5..13.5 (printed by
+ * pack/src/spike_assets.py). */
 function onPanel(x: num, y: num): num {
-    if (x >= -31.5 && x <= 32.5 && y >= -18 && y <= 14) {
+    if (x >= -31 && x <= 32 && y >= -17.5 && y <= 13.5) {
         return 1;
     }
     return 0;

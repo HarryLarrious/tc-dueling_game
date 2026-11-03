@@ -57,6 +57,10 @@ pattern, the `@cpu` gauge.
   part upgrades. Cosmetic credits are only bought, through DF plot products.
 - **UI ignores FOV and GUI scale and takes mouse input.** A core shader in the
   pack draws it on a fixed virtual canvas (see UI and HUD).
+- **High-resolution look, not Minecraft.** UI art, fonts and model textures
+  are high resolution and anti-aliased, sampled smooth by our shaders; no
+  pixel art and nothing that reads as a Minecraft game (see UI and HUD, Art
+  quality).
 - **The client does the visual work.** Anything purely visual runs on the
   client through the resource pack, core shaders and post effects (see
   Client-side tech). The server computes gameplay state and sends only
@@ -361,6 +365,25 @@ translucent panels and a class cockpit frame (cockpit reference).
 **How it is drawn**
 
 - All UI art is font glyphs (PNG bitmaps) and models in the pack.
+- **Art quality** (owner, 2026-11-02: "high resolution and high quality,
+  something that doesn't look like a Minecraft game"):
+  - Glyph art is drawn anti-aliased (rendered 4× and downsampled with
+    premultiplied alpha) at about 4–8 texels per canvas unit: at 1440p one
+    canvas unit is 4 screen pixels, at 4K 6.
+  - A glyph image must be under 255 px a side: the font atlas pages are
+    256×256 with 1 px spacing (`FontTexture`), and a glyph that does not fit
+    becomes the missing-glyph box. Larger art is split into several glyphs
+    laid side by side with spacing glyphs.
+  - Every glyph keeps a 2 px transparent margin, so filtered sampling never
+    reaches a neighbouring glyph in the atlas.
+  - The font atlas sampler is `NEAREST`, so `core/text.fsh` samples marked
+    glyphs itself: bilinear when magnified, a 4-tap footprint average when
+    shrunk, on premultiplied colors (no dark fringes). Unmarked text samples
+    as vanilla.
+  - Still Minecraft-looking, each with a ticket: the default font for UI text
+    (needs a high-resolution TTF font), and 16×16 nearest-filtered model
+    textures (high-resolution textures plus filtered sampling and better
+    lighting in `core/item`, MEC-19).
 - A **core shader** recognizes marked UI elements and places them on one
   *virtual canvas* scaled to the window height. It cancels the GUI scale and
   uses its own fixed projection instead of the player's FOV, so size and
@@ -788,3 +811,6 @@ the marker carries the choice.
 8. Do pilots ever leave the mech mid-match, Titanfall-style? [no]
 9. Who makes the final models and sounds? [placeholder boxes and stock sounds
    first; final art in Blockbench]
+10. Replace `minecraft:default` (all text on the plot: chat, signs, DF
+    messages) with the UI's TTF font, or only use it for marked UI text?
+    [only UI text; chat stays readable and familiar]

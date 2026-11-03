@@ -34,6 +34,8 @@ layout(location = 1) out float cylindricalVertexDistance;
 
 layout(location = 2) out vec4 vertexColor;
 layout(location = 3) out vec2 texCoord0;
+// 1 for marked UI glyphs: text.fsh samples them filtered (high-res art).
+layout(location = 4) out float uiSmooth;
 
 // All four corners at one point outside the screen: the quad is not drawn.
 const vec4 HIDDEN = vec4(2.0, 2.0, 2.0, 1.0);
@@ -125,4 +127,5 @@ void main() {
     vertexColor = color;
 #endif
     texCoord0 = UV0;
+    uiSmooth = marked ? 1.0 : 0.0;
 }
