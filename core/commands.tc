@@ -2,12 +2,19 @@
 
 /** One-time setup the first time any code runs on the plot. */
 function ensureInitialized {
-    if (global initialized != 7) {
-        // 7: mechs carry a loadout, stats and hull size; older mechs can't be drawn.
+    if (global initialized != 8) {
+        // 8: mechs are drawn as class skeletons (mPartEnt). Hull displays of
+        // older plots (mBody) are removed here once.
+        for (line body of global mBody as list) {
+            select entitiesByName(line body as str);
+            selectedEntity.remove();
+            select reset;
+        }
+        global mBody = [];
         clearMechs();
         resetConfig();
         global floorSet = 0;
-        global initialized = 7;
+        global initialized = 8;
     }
     ensureCatalog();
 }
@@ -15,7 +22,6 @@ function ensureInitialized {
 /** Default tunables. */
 function resetConfig {
     global mechHover = 0.3;
-    global seatHover = 1.6;
     global mechPower = 2.5;
     global turnEase = 0.7;
     global idleEase = 0.3;
@@ -28,7 +34,9 @@ function clearMechs {
         select entitiesByName(global mSeat[line c]);
         selectedEntity.remove();
         select reset;
-        select entitiesByName(global mBody[line c]);
+    }
+    for (line part of global mPartEnt) {
+        select entitiesByName(line part as str);
         selectedEntity.remove();
         select reset;
     }
@@ -38,7 +46,12 @@ function clearMechs {
     global mF = [];
     global mSeat = [];
     global mDriver = [];
-    global mBody = [];
+    global mPartEnt = [];
+    global mPartStart = [];
+    global mPartCount = [];
+    global mDrawnPos = [];
+    global mDrawnYaw = [];
+    global mSeatUp = [];
     global mLoadout = [];
     global mClass = [];
     global mStats = [];

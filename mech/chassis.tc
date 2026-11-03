@@ -1,6 +1,6 @@
 // The kinematic chassis: spawn a mech from a loadout, move it each tick, draw
-// it. Until pack models arrive, a mech is drawn as one placeholder hull box
-// in its class's hull size.
+// it. Until pack models arrive, a mech is drawn as its class skeleton of
+// placeholder parts (mech/skeleton.tc).
 
 /** Sets the floor height and arena center at the player's feet. */
 function setFloorHere {
@@ -33,8 +33,8 @@ function forwardVec(): vec {
     return line flat.setLength(1);
 }
 
-/** Spawns a mech from a loadout 6 blocks ahead: seat + placeholder hull box
- * in the class's hull size. Derived stats are computed here, once. */
+/** Spawns a mech from a loadout 6 blocks ahead: seat + the class skeleton's
+ * placeholder parts. Derived stats are computed here, once. */
 function spawnMech(lo: dict) {
     ensureFloor();
     line lo = validLoadout(lo);
@@ -49,22 +49,19 @@ function spawnMech(lo: dict) {
     global mLoadout.append(line lo);
     global mClass.append(line cls);
     global mStats.append(deriveStats(line lo));
-    global mRad.append(num.root(line s.x * line s.x + line s.z * line s.z) * 0.5);
+    global mRad.append(skeletonReach(line cls, line hull));
     global mPos.append(vec(global arenaX + line f.x * 6, global floorY + global mechHover, global arenaZ + line f.z * 6));
     global mYaw.append(default.bodyYaw);
     global mF.append(yawToVec(global mYaw[line c]));
     global mDriver.append("");
     global mAlive.append(1);
 
+    spawnParts(line c);
+
     // Invisible seat the rider rides; teleported with the chassis each tick.
-    line head = global mPos[line c] + vec(0, global seatHover, 0);
+    line head = seatPoint(line c);
     game.spawnInteractionEntity(loc(line head.x, line head.y, line head.z), 0.8, 0.6);
     global mSeat.append(lastEntity.uuid);
-
-    // Placeholder hull, centered over the chassis position.
-    line mid = global mPos[line c] + vec(0, line s.y * 0.5, 0);
-    game.spawnBlockDisplay(loc(line mid.x, line mid.y, line mid.z), item("light_gray_terracotta"));
-    global mBody.append(lastEntity.uuid);
 
     line rad = global mRad[line c];
     default.sendMessage(s"<gray>Mech <white>%var(c)</white> spawned, radius <white>%var(rad)</white>. Sit with <yellow>@sit <white>%var(c)</white>");
@@ -145,31 +142,16 @@ function pushApart {
     }
 }
 
-/** Draws mech c for this tick: hull matrix update + seat. */
+/** Where mech c's seat goes: over the chassis, mSeatUp above the floor. */
+function seatPoint(c: num): vec {
+    line pos = global mPos[c];
+    return vec(line pos.x, global floorY + global mSeatUp[c], line pos.z);
+}
+
+/** Draws mech c for this tick: skeleton parts + seat. */
 function drawMech(c: num) {
-    line f = global mF[line c];
-    // Basis columns (side, up, forward) have determinant +1: no mirroring,
-    // so faces point outward. Same side vector drives offsets and columns.
-    line r = vec(0 - line f.z, 0, line f.x);
-    line base = global mPos[line c];
-    line s = global mSize[line c];
-    line p = line base + vec(0, line s.y * 0.5, 0);
-    line c0 = line r * line s.z;
-    line c1 = vec(0, line s.y, 0);
-    line c2 = line f * line s.x;
-    line t = (line c0 + line c1 + line c2) * -0.5;
-    select entitiesByName(global mBody[line c]);
-    selectedEntity.teleport(loc(line p.x, line p.y, line p.z));
-    selectedEntity.setDisplayTransformationMatrix([
-        line c0.x, line c1.x, line c2.x, line t.x,
-        line c0.y, line c1.y, line c2.y, line t.y,
-        line c0.z, line c1.z, line c2.z, line t.z,
-        0, 0, 0, 1
-    ]);
-    selectedEntity.setDisplayInterpolation(1, 0);
-    select reset;
-    // Seat follows the chassis.
-    line h = line base + vec(0, global seatHover, 0);
+    drawParts(c);
+    line h = seatPoint(c);
     select entitiesByName(global mSeat[line c]);
     selectedEntity.teleport(loc(line h.x, line h.y, line h.z));
     select reset;

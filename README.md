@@ -12,7 +12,7 @@ plan and locked design decisions.
 ## Status
 
 Pre-M1, Stage 0 done: a bare kinematic chassis (seat + `rideEntity` driving,
-placeholder hull box, `@cpu` gauge). Next: the Stage 1 spikes in
+class skeletons of placeholder parts, `@cpu` gauge). Next: the Stage 1 spikes in
 [PLAN.md](PLAN.md).
 
 | Path | Contents |
@@ -21,6 +21,7 @@ placeholder hull box, `@cpu` gauge). Next: the Stage 1 spikes in
 | `core/loop.tc` | Main loop: per-tick drive, push-out, draw |
 | `core/commands.tc` | `@mech @loadout @sit @clear @cpu @floor @parts @help`, the pack spike commands, boarding |
 | `mech/chassis.tc` | Spawn a mech from a loadout, drive, push-out, draw |
+| `mech/skeleton.tc` | Class skeletons: placeholder part displays, right-handed part matrices, two-bone knee solve |
 | `mech/catalog.tc` | Part catalog: one row per prebuilt part (classes, guns, armor, augments, cosmetics), `@parts` |
 | `mech/loadout.tc` | Loadouts: validation, defaults, derived stats, `@loadout` |
 | `spike/cpu.tc`, `spike/pack.tc` | Stage 1 spikes: CPU test rigs (`@spike`), pack tests (`@pack @hud @menu @model @beep @fx @outline`); removed by MEC-23 |
