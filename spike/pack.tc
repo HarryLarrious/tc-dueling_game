@@ -47,9 +47,12 @@ function uiGlyph(glyph: str, color: str): txt {
     return miniMessage("<font:mech:ui><%var(color)>%var(glyph)");
 }
 
-/** Parses a MiniMessage string built at run time (colors computed above). */
+/** Parses a MiniMessage string built at run time (colors computed above).
+ * "Full" because the default "Style Only" drops <font>, which leaves the
+ * glyphs in the default font as missing-glyph boxes. Only our own strings
+ * reach this, never player input. */
 function miniMessage(expr: str): txt {
-    return s"%var(expr)".parseExpression();
+    return s"%var(expr)".parseExpression(allowed="Full");
 }
 
 /** Remembers an entity for @pack clear. */
