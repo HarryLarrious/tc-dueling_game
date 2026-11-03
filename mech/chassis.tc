@@ -1,0 +1,165 @@
+// The kinematic chassis: spawn a mech, move it each tick, draw it. Until
+// pack models arrive, a mech is drawn as one placeholder hull box.
+
+/** Sets the floor height and arena center at the player's feet. */
+function setFloorHere {
+    global floorY = num.floor(default.location.y);
+    global arenaX = default.location.x;
+    global arenaZ = default.location.z;
+    global floorSet = 1;
+    default.sendMessage(s"<gray>Floor and arena center set to y=<white>%var(floorY)</white>, radius <white>%var(arenaR)</white>.");
+}
+
+/** Puts the floor at the player's feet the first time anything is spawned. */
+function ensureFloor {
+    if (global floorSet != 1) {
+        setFloorHere();
+    }
+}
+
+/** Unit vector for a facing yaw in degrees (MC: yaw 0 faces +z). */
+function yawToVec(deg: num): vec {
+    return vec(0 - num.sin(deg), 0, num.cos(deg));
+}
+
+/** Horizontal unit vector pointing where the player looks. */
+function forwardVec(): vec {
+    line d = default.direction;
+    line flat = vec(line d.x, 0, line d.z);
+    if (line flat.len() < 0.01) {
+        return vec(1, 0, 0);
+    }
+    return line flat.setLength(1);
+}
+
+/** Spawns a bare chassis 6 blocks ahead: seat + placeholder hull box. */
+function spawnChassis {
+    ensureFloor();
+    line f = forwardVec();
+    global mCount += 1;
+    line c = global mCount;
+    line s = global bodySize;
+    global mRad.append(num.root(line s.x * line s.x + line s.z * line s.z) * 0.5);
+    global mPos.append(vec(global arenaX + line f.x * 6, global floorY + global mechHover, global arenaZ + line f.z * 6));
+    global mYaw.append(default.bodyYaw);
+    global mF.append(yawToVec(global mYaw[line c]));
+    global mDriver.append("");
+    global mAlive.append(1);
+
+    // Invisible seat the rider rides; teleported with the chassis each tick.
+    line head = global mPos[line c] + vec(0, global seatHover, 0);
+    game.spawnInteractionEntity(loc(line head.x, line head.y, line head.z), 0.8, 0.6);
+    global mSeat.append(lastEntity.uuid);
+
+    // Placeholder hull, centered over the chassis position.
+    line mid = global mPos[line c] + vec(0, line s.y * 0.5, 0);
+    game.spawnBlockDisplay(loc(line mid.x, line mid.y, line mid.z), item("light_gray_terracotta"));
+    global mBody.append(lastEntity.uuid);
+
+    line rad = global mRad[line c];
+    default.sendMessage(s"<gray>Mech <white>%var(c)</white> spawned, radius <white>%var(rad)</white>. Sit with <yellow>@sit <white>%var(c)</white>");
+}
+
+/** Per-tick kinematic update for mech c: pilot input -> pos + facing. */
+function driveTick(c: num) {
+    if (global mDriver[line c] == "") {
+        return;
+    }
+    line fwd = 0;
+    line side = 0;
+    select playersByName(global mDriver[line c]);
+    line fwd = selected.steerForwardMovement;
+    line side = selected.steerSidewaysMovement;
+    line want = selected.bodyYaw;
+    select reset;
+
+    // Ease facing toward the rider's body yaw, wrapped to (-180, 180].
+    line turn = line want - global mYaw[line c];
+    while (line turn > 180) {
+        line turn -= 360;
+    }
+    while (line turn < -180) {
+        line turn += 360;
+    }
+    line ease = global idleEase;
+    if (line fwd != 0 || line side != 0) {
+        line ease = global turnEase;
+    }
+    global mYaw[line c] = global mYaw[line c] + line turn * line ease;
+    global mF[line c] = yawToVec(global mYaw[line c]);
+
+    // Kinematic movement: pos += f*mv + r*ms, tick-scaled power.
+    line f = global mF[line c];
+    line r = vec(0 - line f.z, 0, line f.x);
+    line step = global mechPower * 0.05;
+    line pos = global mPos[line c] + f * line fwd * line step + line r * line side * line step;
+    pos.y = global floorY + global mechHover;
+    global mPos[line c] = pos;
+
+    // Circular kinematic boundary.
+    line dx = pos.x - global arenaX;
+    line dz = pos.z - global arenaZ;
+    line dist = num.root(dx * dx + dz * dz);
+    if (line dist > global arenaR) {
+        line back = (line dist - global arenaR) / line dist;
+        global mPos[line c] = pos - vec(dx * back, 0, dz * back);
+    }
+}
+
+/** Pushes piloted and idle mechs apart so bounding spheres never overlap. */
+function pushApart {
+    repeat (line a to global mCount) {
+        if (global mAlive[line a] == 1) {
+            repeat (line b to global mCount) {
+                if (line b > line a && global mAlive[line b] == 1) {
+                    line pa = global mPos[line a];
+                    line pb = global mPos[line b];
+                    line flat = vec(pb.x - pa.x, 0, pb.z - pa.z);
+                    line d = line flat.len();
+                    line need = global mRad[line a] + global mRad[line b];
+                    if (line d < need) {
+                        line dir = line flat;
+                        if (line d < 0.001) {
+                            dir = vec(1, 0, 0);
+                        } else {
+                            dir = line flat.setLength(1);
+                        }
+                        line push = (need - line d) / 2 + 0.01;
+                        global mPos[line a] = pa - dir * push;
+                        global mPos[line b] = pb + dir * push;
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** Draws mech c for this tick: hull matrix update + seat. */
+function drawMech(c: num) {
+    line f = global mF[line c];
+    // Basis columns (side, up, forward) have determinant +1: no mirroring,
+    // so faces point outward. Same side vector drives offsets and columns.
+    line r = vec(0 - line f.z, 0, line f.x);
+    line base = global mPos[line c];
+    line s = global bodySize;
+    line p = line base + vec(0, line s.y * 0.5, 0);
+    line c0 = line r * line s.z;
+    line c1 = vec(0, line s.y, 0);
+    line c2 = line f * line s.x;
+    line t = (line c0 + line c1 + line c2) * -0.5;
+    select entitiesByName(global mBody[line c]);
+    selectedEntity.teleport(loc(line p.x, line p.y, line p.z));
+    selectedEntity.setDisplayTransformationMatrix([
+        line c0.x, line c1.x, line c2.x, line t.x,
+        line c0.y, line c1.y, line c2.y, line t.y,
+        line c0.z, line c1.z, line c2.z, line t.z,
+        0, 0, 0, 1
+    ]);
+    selectedEntity.setDisplayInterpolation(1, 0);
+    select reset;
+    // Seat follows the chassis.
+    line h = line base + vec(0, global seatHover, 0);
+    select entitiesByName(global mSeat[line c]);
+    selectedEntity.teleport(loc(line h.x, line h.y, line h.z));
+    select reset;
+}

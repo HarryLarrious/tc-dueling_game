@@ -1,0 +1,43 @@
+// Mech state: a mech is a kinematic chassis {position, facing yaw} — no
+// solver, no simulation. Mech lists are indexed 1..mCount. Positions are vec
+// because vector components hold more precision than DF numbers (3 decimals).
+
+/** Mech bookkeeping. */
+declare global mCount: num;
+declare global mAlive: list[num];
+/** Chassis position: arena x/z, y = floorY + mechHover. */
+declare global mPos: list[vec];
+/** Facing yaw in degrees, MC convention: f = (-sin y, 0, cos y). */
+declare global mYaw: list[num];
+/** Unit facing vector, recomputed from mYaw each tick. */
+declare global mF: list[vec];
+/** Bounding radius: mech-vs-mech push-out + hit early-out. */
+declare global mRad: list[num];
+/** UUID of the invisible seat entity. */
+declare global mSeat: list[str];
+/** UUID of the player driving, "" = unpiloted. */
+declare global mDriver: list[str];
+/** UUID of the placeholder hull display until pack models replace it. */
+declare global mBody: list[str];
+
+/** World: floor height and the arena circle centered where @floor was set. */
+declare global floorY: num;
+declare global floorSet: num;
+declare global arenaX: num;
+declare global arenaZ: num;
+declare global arenaR: num;
+
+/** Loop bookkeeping and readout. */
+declare global loopId: num;
+declare global lastBeat: num;
+declare global lastCpu: num;
+declare global initialized: num;
+
+/** Tunables (set by resetConfig). */
+declare global mechHover: num;
+declare global seatHover: num;
+declare global mechPower: num;
+declare global turnEase: num;
+declare global idleEase: num;
+/** Placeholder hull size in blocks: x = forward, y = up, z = side. */
+declare global bodySize: vec;

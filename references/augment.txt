@@ -1,0 +1,19 @@
+augments are abilities.
+
+1. Black Powder
+	- makes your next two shots deal more damage and travel instantly
+
+2. Electrostatic Dome
+	- shield generator. how it works scientifically : generates a static field that detonates projectiles before they damage you.
+	
+3. HMP Unit
+	- Holographic Mech Projection Unit, throws a projector onto the ground that creates a clone of you standing still.
+	
+4. EMP Engine
+	- Shoots a emp charge that disabled enemy augments in a radius near its detonation.
+	
+5. HRB Cannon
+	- Hypervelocity Rod Bundles, basically an air strike on a location you are looking when you click it.
+
+6. Internal Repair Torch
+	- repairs all damaged parts 10% over 15 seconds.

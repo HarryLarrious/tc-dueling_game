@@ -1,0 +1,50 @@
+// The main loop: one guarded process advances every mech each tick.
+
+/** Advances every mech one tick: pilot input, push-out, then drawing. */
+function mechTick {
+    repeat (line c to global mCount) {
+        if (global mAlive[line c] == 1) {
+            driveTick(line c);
+        }
+    }
+    pushApart();
+    repeat (line c to global mCount) {
+        if (global mAlive[line c] == 1) {
+            drawMech(line c);
+        }
+    }
+}
+
+/** Starts the mech loop unless one already ran within the last few ticks. */
+function ensureLoop {
+    ensureInitialized();
+    if (game.ticksSinceStartup - global lastBeat > 5) {
+        start mechLoop;
+    }
+}
+
+process mechLoop {
+    global loopId += 1;
+    line myId = global loopId;
+    repeat {
+        // A newer loop was started: let this one end.
+        if (global loopId != line myId) {
+            break;
+        }
+        global lastBeat = game.ticksSinceStartup;
+        if (global mCount > 0) {
+            mechTick();
+        }
+        if (global rCount > 0 || global pCount > 0) {
+            spikeStep();
+        }
+        if (global mCount > 0 || global rCount > 0 || global pCount > 0) {
+            // The live CPU budget gauge, plus a ~20-tick moving average.
+            global lastCpu = game.cpuUsage;
+            global cpuAvg = global cpuAvg * 0.95 + global lastCpu * 0.05;
+            line avg = num.floor(global cpuAvg * 10) / 10;
+            allPlayers.sendActionBar(s"<gray>mechs <white>%var(mCount)</white> rigs <white>%var(rCount)</white> shots <white>%var(pCount)</white> CPU <white>%var(lastCpu)%</white> avg <white>%var(avg)%</white>");
+        }
+        wait;
+    }
+}

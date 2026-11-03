@@ -1,0 +1,9 @@
+wasd -> movement
+space -> jump light mechs
+space -> boost forward heavy mechs
+rc -> aim
+lc -> shoot
+f -> augment activate 1 (ability)
+q -> augment activate 2 (ability)
+middle click -> ping
+shift -> switch fire (secondary for when main gun is on cooldown)

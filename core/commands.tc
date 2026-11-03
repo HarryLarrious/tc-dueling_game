@@ -1,0 +1,159 @@
+// Player interaction: chat commands, boarding, getting out.
+
+/** One-time setup the first time any code runs on the plot. */
+function ensureInitialized {
+    if (global initialized != 6) {
+        resetConfig();
+        global floorSet = 0;
+        global initialized = 6;
+    }
+}
+
+/** Default tunables. */
+function resetConfig {
+    global mechHover = 0.3;
+    global seatHover = 1.6;
+    global mechPower = 2.5;
+    global turnEase = 0.7;
+    global idleEase = 0.3;
+    global arenaR = 25;
+    global bodySize = vec(2, 1.5, 2);
+}
+
+/** Removes every mech entity and empties the mech lists. */
+function clearMechs {
+    repeat (line c to global mCount) {
+        select entitiesByName(global mSeat[line c]);
+        selectedEntity.remove();
+        select reset;
+        select entitiesByName(global mBody[line c]);
+        selectedEntity.remove();
+        select reset;
+    }
+    global mRad = [];
+    global mPos = [];
+    global mYaw = [];
+    global mF = [];
+    global mSeat = [];
+    global mDriver = [];
+    global mBody = [];
+    global mAlive = [];
+    global mCount = 0;
+}
+
+/** Index of the mech `uuid` pilots, or 0. */
+function mechOf(uuid: str): num {
+    return global mDriver.find(uuid);
+}
+
+/** The mech the player pilots, or the nearest alive one within 8 blocks, or 0. */
+function nearestMech(): num {
+    line mine = mechOf(default.uuid);
+    if (line mine != 0) {
+        return line mine;
+    }
+    line here = default.location;
+    line best = 0;
+    line bestDist = 8;
+    repeat (line c to global mCount) {
+        if (global mAlive[line c] == 1) {
+            line d = vec(global mPos[line c].x - line here.x, 0, global mPos[line c].z - line here.z);
+            line dist = line d.len();
+            if (line dist < line bestDist) {
+                line best = line c;
+                line bestDist = line dist;
+            }
+        }
+    }
+    return line best;
+}
+
+/** Stops the player piloting whatever mech they were riding. */
+function leaveMech {
+    line c = mechOf(default.uuid);
+    if (line c != 0) {
+        global mDriver[line c] = "";
+    }
+}
+
+/** Puts the player in the seat of mech c and makes them its driver. */
+function sitMech(c: num) {
+    if (line c > global mCount || global mAlive[line c] != 1) {
+        default.sendMessage(s"<gray>Mech <white>%var(c)</white> does not exist or is destroyed.");
+        return;
+    }
+    leaveMech();
+    if (global mDriver[line c] != "") {
+        default.sendMessage(s"<gray>Someone else is piloting mech <white>%var(c)</white>.");
+        return;
+    }
+    global mDriver[line c] = default.uuid;
+    default.rideEntity(global mSeat[line c]);
+    default.sendMessage(s"<gray>Piloting mech <white>%var(c)</white>: W/S drive, A/D strafe, sneak to get out.");
+}
+
+/** Parse parts[index] as a number, or fallback if missing or bad. */
+function argNum(parts: list, index: num, fallback: num): num {
+    if (parts.len() < index) {
+        return fallback;
+    }
+    return num.parse(parts[index] as str);
+}
+
+/** Chat commands: @mech @sit @clear @cpu @floor @spike @help. */
+playerevent command {
+    ensureInitialized();
+    line parts = event.command.split(" ");
+    line cmd = (line parts[1] as str).replace("@", "");
+
+    if (line cmd == "mech") {
+        ensureLoop();
+        spawnChassis();
+    } else if (line cmd == "sit") {
+        ensureLoop();
+        line c = argNum(line parts, 2, 0);
+        if (line c == 0) {
+            line c = nearestMech();
+        }
+        if (line c == 0) {
+            default.sendMessage(s"<gray>No mech to board: build one with <yellow>@mech</yellow>.");
+            return;
+        }
+        sitMech(line c);
+    } else if (line cmd == "clear") {
+        clearMechs();
+        default.sendMessage(s"<gray>All mechs cleared.");
+    } else if (line cmd == "cpu") {
+        line cpu = game.cpuUsage;
+        default.sendMessage(s"<gray>Plot CPU now: <white>%var(cpu)</white>%, last mech-loop gauge: <white>%var(lastCpu)</white>%.");
+    } else if (line cmd == "floor") {
+        setFloorHere();
+    } else if (line cmd == "spike") {
+        ensureLoop();
+        spikeCommand(line parts);
+    } else if (line cmd == "help") {
+        mechHelp();
+    }
+}
+
+function mechHelp {
+    default.sendMessage(s"<gold><bold>Mechs</bold>");
+    default.sendMessage(s"<yellow>@mech</yellow> <gray>spawn a test chassis 6 blocks ahead");
+    default.sendMessage(s"<yellow>@sit [mech]</yellow> <gray>board that mech, or the nearest one");
+    default.sendMessage(s"<yellow>W/S</yellow> <gray>drive forward/back, <yellow>A/D</yellow> strafe, sneak to get out");
+    default.sendMessage(s"<yellow>@floor</yellow> <gray>set the floor plane and arena center at your feet");
+    default.sendMessage(s"<yellow>@cpu</yellow> <gray>plot CPU usage; also shown on your action bar each tick");
+    default.sendMessage(s"<yellow>@clear</yellow> <gray>remove all mechs");
+    default.sendMessage(s"<yellow>@spike</yellow> <gray>CPU test rigs and projectiles (see @spike for options)");
+}
+
+playerevent join {
+    default.setToCreativeMode();
+    ensureInitialized();
+    ensureLoop();
+    default.sendMessage(s"<gold>Mechs <gray>- type <yellow>@help</yellow> for commands.");
+}
+
+playerevent dismount {
+    leaveMech();
+}
