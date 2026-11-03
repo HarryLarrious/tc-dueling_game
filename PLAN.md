@@ -534,6 +534,18 @@ translucent panels and a class cockpit frame (cockpit reference).
   food, armor, air, XP, jump bar, locator bar and effect backgrounds.
   Verified on Plot 206003 (2026-11-03, `hudDemo`): items land on their
   anchors, right-aligned text lines up, rows stack.
+- **Damage schema as built** (`ui/schema.tc`, MEC-55): a paper doll per
+  class (seen from the seat, the mech's left on the left), one glyph per part
+  in display order (font `mech:schema`, generated with its table
+  `ui/schemafont.tc` by `pack/src/schema_assets.py`), tinted by HP: cyan,
+  amber below 2/3, red below 1/3, dark grey destroyed. The shield bar to its
+  left (frame + fill per 10%) shows only with an Electrostatic Dome; until
+  MEC-48 tracks charge it reads full while the module is intact. Panel
+  `schema` at the top-right anchor in bar slot 1. Bitmap glyphs can only
+  rise by their own height (ascent ≤ height), so every glyph bakes its place
+  150 canvas units below the anchor into its ascent; x comes from the table.
+  Shown on `sitMech`, refreshed by `applyHit`, hidden on leaving or
+  destruction.
 - **Menus in a menu room**: the player rides a fixed seat. Panels, a backdrop
   and 3D previews (party mechs, customizer mech, shop viewer) are text and
   item displays in front of the seat. The shader locks them to the screen

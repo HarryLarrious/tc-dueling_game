@@ -21,6 +21,13 @@ declare global hudSent: dict;
 /** Quarter-unit advances per HUD font size (hudfont.tc), built once. */
 declare global hudAdv: dict;
 
+/** One bitmap glyph item: character `ch` of font `font` (advance `adv`
+ * canvas units, from its generated table), left edge at x. Its vertical
+ * place is baked into the glyph. */
+function hudGlyph(ch: str, font: str, adv: num, palette: num, x: num): dict {
+    return {text: ch, font: font, adv: adv, size: "", palette: palette, x: x, row: 0, align: "left"};
+}
+
 /** One HUD text item (see the file comment). */
 function hudItem(text: str, size: str, palette: num, x: num, row: num, align: str): dict {
     return {text: text, size: size, palette: palette, x: x, row: row, align: align};
@@ -93,7 +100,13 @@ function hudFont(size: str, row: num): str {
 function hudItemMarkup(it: dict, anchor: num, slot: num): str {
     line text = it["text"] as str;
     line size = it["size"] as str;
-    line w = hudWidth(line text, line size);
+    line glyph = it.hasKeys("font");
+    line w = 0;
+    if (line glyph) {
+        line w = it["adv"] as num;
+    } else {
+        line w = hudWidth(line text, line size);
+    }
     line x0 = it["x"] as num;
     if (it["align"] as str == "center") {
         line x0 -= line w / 2;
@@ -101,7 +114,12 @@ function hudItemMarkup(it: dict, anchor: num, slot: num): str {
         line x0 -= line w;
     }
     line color = uiColor(252, anchor * 3 + slot, it["palette"] as num);
-    line font = hudFont(line size, it["row"] as num);
+    line font = "";
+    if (line glyph) {
+        line font = it["font"] as str;
+    } else {
+        line font = hudFont(line size, it["row"] as num);
+    }
     line safe = line text.replace("\\", "\\\\").replace("<", "\\<");
     line go = hudSpace(line x0);
     line back = hudSpace(0 - line x0 - line w);

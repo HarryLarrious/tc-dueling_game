@@ -74,6 +74,9 @@ function applyHit(c: num, part: num, amount: num, impulse: vec, source: num = 0)
         global hbHp[line k] = 0;
         partDestroyed(c, part);
     }
+    if (global mAlive[c] == 1) {
+        schemaUpdate(c);
+    }
     return line dealt;
 }
 

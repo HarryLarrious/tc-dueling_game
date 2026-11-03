@@ -107,6 +107,7 @@ function leaveMech {
     line c = mechOf(default.uuid);
     if (line c != 0) {
         global mDriver[line c] = "";
+        schemaHide(default.uuid);
     }
 }
 
@@ -123,6 +124,7 @@ function sitMech(c: num) {
     }
     global mDriver[line c] = default.uuid;
     default.rideEntity(global mSeat[line c]);
+    schemaUpdate(line c);
     default.sendMessage(s"<gray>Piloting mech <white>%var(c)</white>: W/S drive, A/D strafe, sneak to get out.");
 }
 

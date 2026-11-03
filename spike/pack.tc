@@ -23,7 +23,7 @@ declare global "fxMark %uuid": str;
 
 /** The newest pack on pack-dist (tools/build_pack.py --publish prints it). */
 function defaultPackUrl(): str {
-    return "https://raw.githubusercontent.com/HarryLarrious/tc-mech_game/pack-dist/mech-pack-13c5c982c2b4.zip";
+    return "https://raw.githubusercontent.com/HarryLarrious/tc-mech_game/pack-dist/mech-pack-cfd4118faec2.zip";
 }
 
 /** Remembers an entity for @pack clear. */

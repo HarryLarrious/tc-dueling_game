@@ -1,0 +1,571 @@
+{
+  "providers": [
+    {
+      "type": "bitmap",
+      "file": "mech:font/schema/walker_0.png",
+      "height": 24,
+      "ascent": -164,
+      "chars": [
+        "\ue100"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/schema/walker_1.png",
+      "height": 20,
+      "ascent": -142,
+      "chars": [
+        "\ue101"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/schema/walker_2.png",
+      "height": 32,
+      "ascent": -144,
+      "chars": [
+        "\ue102"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/schema/walker_3.png",
+      "height": 32,
+      "ascent": -144,
+      "chars": [
+        "\ue103"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/schema/walker_4.png",
+      "height": 12,
+      "ascent": -176,
+      "chars": [
+        "\ue104"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/schema/walker_5.png",
+      "height": 12,
+      "ascent": -176,
+      "chars": [
+        "\ue105"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/schema/walker_6.png",
+      "height": 19,
+      "ascent": -190,
+      "chars": [
+        "\ue106"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/schema/walker_7.png",
+      "height": 19,
+      "ascent": -209,
+      "chars": [
+        "\ue107"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/schema/walker_8.png",
+      "height": 19,
+      "ascent": -190,
+      "chars": [
+        "\ue108"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/schema/walker_9.png",
+      "height": 19,
+      "ascent": -209,
+      "chars": [
+        "\ue109"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/schema/sprinter_0.png",
+      "height": 22,
+      "ascent": -162,
+      "chars": [
+        "\ue120"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/schema/sprinter_1.png",
+      "height": 18,
+      "ascent": -142,
+      "chars": [
+        "\ue121"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/schema/sprinter_2.png",
+      "height": 28,
+      "ascent": -144,
+      "chars": [
+        "\ue122"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/schema/sprinter_3.png",
+      "height": 28,
+      "ascent": -144,
+      "chars": [
+        "\ue123"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/schema/sprinter_4.png",
+      "height": 11,
+      "ascent": -172,
+      "chars": [
+        "\ue124"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/schema/sprinter_5.png",
+      "height": 11,
+      "ascent": -172,
+      "chars": [
+        "\ue125"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/schema/sprinter_6.png",
+      "height": 21,
+      "ascent": -186,
+      "chars": [
+        "\ue126"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/schema/sprinter_7.png",
+      "height": 21,
+      "ascent": -207,
+      "chars": [
+        "\ue127"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/schema/sprinter_8.png",
+      "height": 21,
+      "ascent": -186,
+      "chars": [
+        "\ue128"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/schema/sprinter_9.png",
+      "height": 21,
+      "ascent": -207,
+      "chars": [
+        "\ue129"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/schema/crawler_0.png",
+      "height": 20,
+      "ascent": -178,
+      "chars": [
+        "\ue140"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/schema/crawler_1.png",
+      "height": 16,
+      "ascent": -160,
+      "chars": [
+        "\ue141"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/schema/crawler_2.png",
+      "height": 18,
+      "ascent": -142,
+      "chars": [
+        "\ue142"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/schema/crawler_3.png",
+      "height": 18,
+      "ascent": -158,
+      "chars": [
+        "\ue143"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/schema/crawler_4.png",
+      "height": 14,
+      "ascent": -180,
+      "chars": [
+        "\ue144"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/schema/crawler_5.png",
+      "height": 14,
+      "ascent": -180,
+      "chars": [
+        "\ue145"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/schema/crawler_6.png",
+      "height": 10,
+      "ascent": -200,
+      "chars": [
+        "\ue146"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/schema/crawler_7.png",
+      "height": 10,
+      "ascent": -200,
+      "chars": [
+        "\ue147"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/schema/crawler_8.png",
+      "height": 10,
+      "ascent": -200,
+      "chars": [
+        "\ue148"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/schema/crawler_9.png",
+      "height": 10,
+      "ascent": -200,
+      "chars": [
+        "\ue149"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/schema/crawler_10.png",
+      "height": 10,
+      "ascent": -209,
+      "chars": [
+        "\ue14a"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/schema/crawler_11.png",
+      "height": 10,
+      "ascent": -209,
+      "chars": [
+        "\ue14b"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/schema/crawler_12.png",
+      "height": 10,
+      "ascent": -209,
+      "chars": [
+        "\ue14c"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/schema/crawler_13.png",
+      "height": 10,
+      "ascent": -209,
+      "chars": [
+        "\ue14d"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/schema/crawler_14.png",
+      "height": 10,
+      "ascent": -218,
+      "chars": [
+        "\ue14e"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/schema/crawler_15.png",
+      "height": 10,
+      "ascent": -218,
+      "chars": [
+        "\ue14f"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/schema/crawler_16.png",
+      "height": 10,
+      "ascent": -218,
+      "chars": [
+        "\ue150"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/schema/crawler_17.png",
+      "height": 10,
+      "ascent": -218,
+      "chars": [
+        "\ue151"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/schema/spider_0.png",
+      "height": 18,
+      "ascent": -176,
+      "chars": [
+        "\ue160"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/schema/spider_1.png",
+      "height": 14,
+      "ascent": -162,
+      "chars": [
+        "\ue161"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/schema/spider_2.png",
+      "height": 20,
+      "ascent": -142,
+      "chars": [
+        "\ue162"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/schema/spider_3.png",
+      "height": 14,
+      "ascent": -160,
+      "chars": [
+        "\ue163"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/schema/spider_4.png",
+      "height": 12,
+      "ascent": -178,
+      "chars": [
+        "\ue164"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/schema/spider_5.png",
+      "height": 12,
+      "ascent": -178,
+      "chars": [
+        "\ue165"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/schema/spider_6.png",
+      "height": 14,
+      "ascent": -196,
+      "chars": [
+        "\ue166"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/schema/spider_7.png",
+      "height": 14,
+      "ascent": -196,
+      "chars": [
+        "\ue167"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/schema/spider_8.png",
+      "height": 14,
+      "ascent": -196,
+      "chars": [
+        "\ue168"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/schema/spider_9.png",
+      "height": 14,
+      "ascent": -196,
+      "chars": [
+        "\ue169"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/schema/spider_10.png",
+      "height": 14,
+      "ascent": -210,
+      "chars": [
+        "\ue16a"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/schema/spider_11.png",
+      "height": 14,
+      "ascent": -210,
+      "chars": [
+        "\ue16b"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/schema/spider_12.png",
+      "height": 14,
+      "ascent": -210,
+      "chars": [
+        "\ue16c"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/schema/spider_13.png",
+      "height": 14,
+      "ascent": -210,
+      "chars": [
+        "\ue16d"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/schema/shield_frame.png",
+      "height": 62,
+      "ascent": -154,
+      "chars": [
+        "\ue1f0"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/schema/shield_1.png",
+      "height": 8,
+      "ascent": -208,
+      "chars": [
+        "\ue1f1"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/schema/shield_2.png",
+      "height": 14,
+      "ascent": -202,
+      "chars": [
+        "\ue1f2"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/schema/shield_3.png",
+      "height": 20,
+      "ascent": -196,
+      "chars": [
+        "\ue1f3"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/schema/shield_4.png",
+      "height": 26,
+      "ascent": -190,
+      "chars": [
+        "\ue1f4"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/schema/shield_5.png",
+      "height": 32,
+      "ascent": -184,
+      "chars": [
+        "\ue1f5"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/schema/shield_6.png",
+      "height": 38,
+      "ascent": -178,
+      "chars": [
+        "\ue1f6"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/schema/shield_7.png",
+      "height": 44,
+      "ascent": -172,
+      "chars": [
+        "\ue1f7"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/schema/shield_8.png",
+      "height": 50,
+      "ascent": -166,
+      "chars": [
+        "\ue1f8"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/schema/shield_9.png",
+      "height": 56,
+      "ascent": -160,
+      "chars": [
+        "\ue1f9"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/schema/shield_10.png",
+      "height": 62,
+      "ascent": -154,
+      "chars": [
+        "\ue1fa"
+      ]
+    }
+  ]
+}

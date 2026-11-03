@@ -1,0 +1,82 @@
+// Damage schema and shield bar (PLAN.md, UI and HUD; MEC-55): the pilot's
+// mech as a paper doll on the right of the HUD, one glyph per part (font
+// mech:schema, table ui/schemafont.tc) colored by its HP, and the shield bar
+// for the Electrostatic Dome to its left. Panel "schema" at the top-right
+// anchor in bar slot 1; the glyphs hang below the anchor by themselves.
+// Shown while a pilot sits in a mech, updated on every hit.
+
+/** HUD palette for a part at `ratio` of its HP: cyan, amber below 2/3,
+ * red below 1/3, dark grey when destroyed. */
+function hpPalette(ratio: num): num {
+    if (ratio <= 0) {
+        return 2;
+    }
+    if (ratio < 0.34) {
+        return 5;
+    }
+    if (ratio < 0.67) {
+        return 4;
+    }
+    return 3;
+}
+
+/** Dome charge of mech c, 0..1, or -1 when it has no Electrostatic Dome.
+ * Until the dome (MEC-48) tracks charge, an intact module reads full. */
+function domeCharge(c: num): num {
+    line lo = global mLoadout[c];
+    line part = 0;
+    if (line lo["aug1"] as str == "dome") {
+        line part = 4;
+    } else if (line lo["aug2"] as str == "dome") {
+        line part = 5;
+    }
+    if (line part == 0) {
+        return -1;
+    }
+    return partIntact(c, line part);
+}
+
+/** The schema panel's items for mech c. */
+function schemaItems(c: num): list {
+    line left = 0 - 12 - schemaWidth();
+    line out = [];
+    line glyphs = schemaGlyphs(global mClass[c]);
+    line first = global mPartStart[c];
+    repeat (line i to line glyphs.len()) {
+        line g = line glyphs[line i] as list;
+        line k = line first + line i - 1;
+        line pal = hpPalette(global hbHp[line k] / global hbHpMax[line k]);
+        line out.append(hudGlyph(line g[1] as str, "mech:schema", line g[3] as num, line pal, line left + (line g[2] as num)));
+    }
+    line charge = domeCharge(c);
+    if (line charge >= 0) {
+        line bar = shieldGlyphs();
+        line frame = line bar[1] as list;
+        line out.append(hudGlyph(line frame[1] as str, "mech:schema", line frame[3] as num, 1, line left + (line frame[2] as num)));
+        line n = num.round(line charge * 10);
+        if (line n > 0) {
+            line fill = line bar[line n + 1] as list;
+            line out.append(hudGlyph(line fill[1] as str, "mech:schema", line fill[3] as num, 3, line left + (line fill[2] as num)));
+        }
+    }
+    return line out;
+}
+
+/** Shows (or refreshes) mech c's schema on player uuid's HUD. */
+function schemaShowTo(uuid: str, c: num) {
+    hudSet(uuid, "schema", 2, 1, schemaItems(c));
+    hudFlush(uuid);
+}
+
+/** Refreshes mech c's schema for its pilot, if it has one. */
+function schemaUpdate(c: num) {
+    if (global mDriver[c] != "") {
+        schemaShowTo(global mDriver[c], c);
+    }
+}
+
+/** Takes the schema off player uuid's HUD. */
+function schemaHide(uuid: str) {
+    hudRemove(uuid, "schema");
+    hudFlush(uuid);
+}

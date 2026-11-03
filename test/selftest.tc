@@ -193,8 +193,25 @@ function runSelfTest {
     checkStr("hud space -7.75", hudSpace(-7.75), "<font:mech:ui>\uF804\uF802\uF801\uF8A3</font>");
     checkStr("hud space 0", hudSpace(0), "");
     checkStr("hud font row -3", hudFont("m", -3), "mech:hud/m_n3");
+    // Damage schema (MEC-55): one glyph per part, colored by HP.
+    line noDome = defaultLoadout("crawler");
+    line noDome["aug2"] = "emp";
+    spawnMech(line noDome);
+    line sc = global mCount;
+    line items = schemaItems(line sc);
+    checkNum("schema crawler glyphs", line items.len(), 18, 0);
+    checkNum("schema intact cyan", (line items[1] as dict)["palette"] as num, 3, 0);
+    applyHit(line sc, 0, 300, vec(0, 0, 0));
+    checkNum("schema damaged hull amber", (schemaItems(line sc)[1] as dict)["palette"] as num, 4, 0);
+    testKill(line sc, 7);
+    checkNum("schema lost shin grey", (schemaItems(line sc)[8] as dict)["palette"] as num, 2, 0);
+    spawnMech(defaultLoadout("walker"));
+    checkNum("schema dome adds shield", schemaItems(global mCount).len(), 12, 0);
+
     hudReset(default.uuid);
     hudDemo(default.uuid);
+    hudRemove(default.uuid, "schema");
+    schemaShowTo(default.uuid, line sc);
     line bars = global hudSent[default.uuid] as list;
     checkNum("hud three bars", line bars.len(), 3, 0);
 
