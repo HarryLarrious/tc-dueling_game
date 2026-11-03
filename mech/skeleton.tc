@@ -12,7 +12,7 @@
 // never mirrored or drawn inside out.
 
 /** All part displays, mech by mech, in order: hull, torso, main gun,
- * secondary gun, then thigh and shin for each leg. Mech c owns
+ * secondary gun, augment modules 1 and 2, then thigh and shin for each leg. Mech c owns
  * mPartEnt[mPartStart[c] .. mPartStart[c] + mPartCount[c] - 1]. */
 declare global mPartEnt: list[str];
 declare global mPartStart: list[num];
@@ -89,21 +89,21 @@ function columnsMatrix(c0: vec, c1: vec, c2: vec): list {
     ];
 }
 
-/** Matrix for a mech:skel_box of size (side, up, forward) facing f. */
-function boxPartMatrix(f: vec, size: vec): list {
-    return columnsMatrix(leftOf(f) * size.x, vec(0, size.y, 0), f * size.z);
+/** Columns for a mech:skel_box of size (side, up, forward) facing f. */
+function boxCols(f: vec, size: vec): list {
+    return [leftOf(f) * size.x, vec(0, size.y, 0), f * size.z];
 }
 
-/** Matrix for a mech:skel_segment of width w from its joint to joint + d.
+/** Columns for a mech:skel_segment of width w from its joint to joint + d.
  * side x (dn x side) = dn, so the columns are right-handed. */
-function segPartMatrix(d: vec, w: num): list {
+function segCols(d: vec, w: num): list {
     line dn = d.setLength(1);
     line side = line dn.cross(vec(0, 1, 0));
     if (line side.len() < 0.01) {
         line side = vec(1, 0, 0);
     }
     line side = line side.setLength(1);
-    return columnsMatrix(line side * w, line dn.cross(line side) * w, d);
+    return [line side * w, line dn.cross(line side) * w, d];
 }
 
 /** Two-bone IK: the knee for a thigh l1 from hip and a shin l2 to foot,
@@ -123,41 +123,68 @@ function kneeOf(hip: vec, foot: vec, l1: num, l2: num, pole: vec): vec {
     return hip + line dir * line a + line bend.setLength(1) * line h;
 }
 
-/** Spawns one placeholder part display with a model and tint, and records it. */
-function spawnPart(at: vec, model: str, color: num) {
+/** Spawns one placeholder part display with a model and tint, and records it
+ * with its hitbox kind and role (combat/hitbox.tc). */
+function spawnPart(at: vec, model: str, color: num, kind: num, role: str) {
     line part = item("stone").setModel(model).setModelDataNumbers(color, type="Colors");
     game.spawnItemDisplay(loc(at.x, at.y, at.z), line part);
     lastEntity.setDisplayTeleportDuration(1);
     global mPartEnt.append(lastEntity.uuid);
+    addHitbox(at, kind, role);
 }
 
-/** Spawns mech c's part displays (it must already have mPos and mClass). */
+/** Local (left, up, forward) mount of augment module n (1 or 2): side pods
+ * on the hull flanks, behind center. */
+function augMount(c: num, n: num): vec {
+    line sk = classSkeleton(global mClass[c]);
+    line hull = global mSize[c];
+    line side = 1;
+    if (n == 2) {
+        line side = -1;
+    }
+    return vec(line side * (line hull.z * 0.5 + 0.25), line sk["ride"] as num, 0 - line hull.x * 0.2);
+}
+
+/** Spawns mech c's part displays (it must already have mPos, mClass, mSize
+ * and mLoadout), in display order: hull, torso, main gun, secondary gun,
+ * augment modules 1 and 2, then thigh and shin for each leg. */
 function spawnParts(c: num) {
     line sk = classSkeleton(global mClass[c]);
     line colors = line sk["colors"] as list;
     line at = global mPos[c];
     global mPartStart.append(global mPartEnt.len() + 1);
-    spawnPart(at, "mech:skel_box", line colors[1] as num);
-    spawnPart(at, "mech:skel_box", line colors[2] as num);
-    spawnPart(at, "mech:skel_segment", line colors[3] as num);
-    spawnPart(at, "mech:skel_segment", line colors[3] as num);
-    repeat ((line sk["hips"] as list).len() * 2) {
-        spawnPart(at, "mech:skel_segment", line colors[4] as num);
+    spawnPart(at, "mech:skel_box", line colors[1] as num, 1, "hull");
+    spawnPart(at, "mech:skel_box", line colors[2] as num, 1, "torso");
+    spawnPart(at, "mech:skel_segment", line colors[3] as num, 2, "main");
+    spawnPart(at, "mech:skel_segment", line colors[3] as num, 2, "secondary");
+    spawnPart(at, "mech:skel_box", line colors[3] as num, 1, "aug1");
+    spawnPart(at, "mech:skel_box", line colors[3] as num, 1, "aug2");
+    repeat (line leg to (line sk["hips"] as list).len()) {
+        spawnPart(at, "mech:skel_segment", line colors[4] as num, 3, "thigh%var(leg)");
+        spawnPart(at, "mech:skel_segment", line colors[4] as num, 3, "shin%var(leg)");
     }
     global mPartCount.append(global mPartEnt.len() + 1 - global mPartStart[c]);
     global mDrawnPos.append(vec(0, -9999, 0));
     global mDrawnYaw.append(0);
     line torso = line sk["torso"] as vec;
-    global mSeatUp.append(line torso.y + (line sk["torsoSize"] as vec).y * 0.5 + 0.3 - 2.2);
+    line top = line torso.y + (line sk["torsoSize"] as vec).y * 0.5;
+    global mSeatUp.append(line top + 0.3 - 2.2);
+    addBound(c, line top);
 }
 
-/** Moves part i of mech c to world point at with matrix m. */
-function placePart(c: num, i: num, at: vec, m: list) {
-    select entitiesByName(global mPartEnt[global mPartStart[c] + i]);
+/** Moves part i of mech c to world point at with matrix columns cols, and
+ * records its hitbox there. */
+function placePart(c: num, i: num, at: vec, cols: list) {
+    line k = global mPartStart[c] + i;
+    line c0 = cols[1] as vec;
+    line c1 = cols[2] as vec;
+    line c2 = cols[3] as vec;
+    select entitiesByName(global mPartEnt[line k]);
     selectedEntity.teleport(loc(at.x, at.y, at.z));
-    selectedEntity.setDisplayTransformationMatrix(m);
+    selectedEntity.setDisplayTransformationMatrix(columnsMatrix(line c0, line c1, line c2));
     selectedEntity.setDisplayInterpolation(1, 0);
     select reset;
+    setHitbox(line k, at, line c0, line c1, line c2);
 }
 
 /** Horizontal reach of a class: the farthest rest foot or hull corner, for
@@ -189,14 +216,16 @@ function drawParts(c: num) {
     line lo = global mLoadout[c];
     line hull = global mSize[c];
     // mSize is (forward, up, side); boxes take (side, up, forward).
-    placePart(c, 0, toWorld(line base, line f, vec(0, line sk["ride"] as num, 0)), boxPartMatrix(line f, vec(line hull.z, line hull.y, line hull.x)));
-    placePart(c, 1, toWorld(line base, line f, line sk["torso"] as vec), boxPartMatrix(line f, line sk["torsoSize"] as vec));
+    placePart(c, 0, toWorld(line base, line f, vec(0, line sk["ride"] as num, 0)), boxCols(line f, vec(line hull.z, line hull.y, line hull.x)));
+    placePart(c, 1, toWorld(line base, line f, line sk["torso"] as vec), boxCols(line f, line sk["torsoSize"] as vec));
 
     // Guns point along the hull until torso traverse (MEC-24) aims them.
     line mainBox = partRow(line lo["main"] as str)["size"] as vec;
     line secBox = partRow(line lo["secondary"] as str)["size"] as vec;
-    placePart(c, 2, toWorld(line base, line f, line sk["mainMount"] as vec), segPartMatrix(line f * line mainBox.z, line mainBox.x));
-    placePart(c, 3, toWorld(line base, line f, line sk["secMount"] as vec), segPartMatrix(line f * line secBox.z, line secBox.x));
+    placePart(c, 2, toWorld(line base, line f, line sk["mainMount"] as vec), segCols(line f * line mainBox.z, line mainBox.x));
+    placePart(c, 3, toWorld(line base, line f, line sk["secMount"] as vec), segCols(line f * line secBox.z, line secBox.x));
+    placePart(c, 4, toWorld(line base, line f, augMount(c, 1)), boxCols(line f, partRow(line lo["aug1"] as str)["size"] as vec));
+    placePart(c, 5, toWorld(line base, line f, augMount(c, 2)), boxCols(line f, partRow(line lo["aug2"] as str)["size"] as vec));
 
     line hips = line sk["hips"] as list;
     line feet = line sk["feet"] as list;
@@ -209,7 +238,8 @@ function drawParts(c: num) {
         line hip = toWorld(line base, line f, line hips[line i] as vec);
         line foot = toWorld(line base, line f, line feet[line i] as vec);
         line knee = kneeOf(line hip, line foot, line thigh, line shin, line pole);
-        placePart(c, 2 + line i * 2, line hip, segPartMatrix(line knee - line hip, line w));
-        placePart(c, 3 + line i * 2, line knee, segPartMatrix(line foot - line knee, line w * 0.8));
+        placePart(c, 4 + line i * 2, line hip, segCols(line knee - line hip, line w));
+        placePart(c, 5 + line i * 2, line knee, segCols(line foot - line knee, line w * 0.8));
     }
+    global mBoundAt[c] = line base + vec(0, global mBoundUp[c], 0);
 }
