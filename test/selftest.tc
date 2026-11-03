@@ -166,6 +166,21 @@ function runSelfTest {
     testKill(line spider, 9);
     checkNum("spider 2 legs immobile", lossNum(line spider, "mobility"), 0, 0);
 
+    // Destruction (MEC-38): a fresh walker 40 blocks east, hull destroyed by
+    // mech 1.
+    line wreckBase = line base + vec(40, 0, 0);
+    spawnMech(line walkerLo);
+    line d = global mCount;
+    testPlace(line d, line wreckBase, 0);
+    line before = global dbEnt.len();
+    checkStr("target alive before", testRay(line wreckBase, vec(0, 2.6, 10), vec(0, 2.6, -10)), "hull");
+    applyHit(line d, 0, 100000, vec(0, 0, 0), line w);
+    checkNum("hull lost destroys mech", global mAlive[line d], 0, 0);
+    checkNum("every part becomes debris", global dbEnt.len() - line before, 10, 0);
+    checkNum("killer recorded", global mLastHit[line d], line w, 0);
+    checkNum("destroyed mech takes no hits", applyHit(line d, 1, 100, vec(0, 0, 0)), 0, 0);
+    checkStr("rays pass a destroyed mech", testRay(line wreckBase, vec(0, 2.6, 10), vec(0, 2.6, -10)), "none");
+
     // Debris lands and is removed after about a second.
     wait(30);
     checkNum("debris cleaned up", global dbEnt.len(), 0, 0);

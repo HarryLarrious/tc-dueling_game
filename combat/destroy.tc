@@ -1,0 +1,57 @@
+// Mech destruction (PLAN.md, Damage): the hull reaching 0 HP destroys the
+// mech. It stops being alive (no driving, drawing, hits or push-out), every
+// remaining part flies off as debris, an explosion marks the wreck, the seat
+// is removed (which dismounts the pilot) and the pilot is handed to the mode
+// through pilotLost. The wreck point is mBoundAt[mech] as last drawn
+// (salvage, MEC-68); who destroyed it is mLastHit[mech] (killfeed, MEC-58).
+// Destroyed mechs keep their list slots: indices stay stable for the rest of
+// the session.
+
+/** Destroys mech c (no effect if it is already destroyed). */
+function destroyMech(c: num) {
+    if (global mAlive[c] != 1) {
+        return;
+    }
+    global mAlive[c] = 0;
+    line at = global mBoundAt[c];
+    line here = loc(line at.x, line at.y, line at.z);
+    allPlayers.displayParticleEffect(par("Explosion Emitter"), line here);
+    allPlayers.displayParticleEffect(par("Large Smoke"), line here);
+    allPlayers.playSound(snd("Explode"), line here);
+
+    // The hull is already at 0 HP when this runs from applyHit.
+    line first = global mPartStart[c];
+    repeat (line i to global mPartCount[c]) {
+        line k = line first + line i - 1;
+        if (global hbHp[line k] > 0 || line i == 1) {
+            global hbHp[line k] = 0;
+            global hbKind[line k] = 0;
+            throwDebris(c, line i - 1);
+        }
+    }
+
+    line pilot = global mDriver[c];
+    global mDriver[c] = "";
+    select entitiesByName(global mSeat[c]);
+    selectedEntity.remove();
+    select reset;
+
+    line by = global mLastHit[c];
+    if (line by == 0) {
+        allPlayers.sendMessage(s"<gray>Mech <white>%var(c)</white> was destroyed.");
+    } else {
+        allPlayers.sendMessage(s"<gray>Mech <white>%var(c)</white> was destroyed by mech <white>%var(by)</white>.");
+    }
+    if (line pilot != "") {
+        pilotLost(c, line pilot);
+    }
+}
+
+/** The pilot (uuid) of mech c lost their mech. The modes take over here:
+ * a respawn timer in FFA (MEC-65), spectating the party in Extraction
+ * (MEC-70). Until then the pilot is just told. */
+function pilotLost(c: num, uuid: str) {
+    select playersByName(uuid);
+    selected.sendMessage(s"<red>Your mech was destroyed. <gray>Spawn another with <yellow>@mech</yellow>.");
+    select reset;
+}

@@ -84,17 +84,19 @@ function updateLoss(c: num) {
     };
 }
 
-/** Part `part` of mech c was just destroyed: a lost thigh takes its shin,
- * the display becomes debris, and the loss state is updated. The hull is
- * left to mech destruction (MEC-38). */
+/** Part `part` of mech c was just destroyed: the hull destroys the mech; a
+ * lost thigh takes its shin, the display becomes debris, and the loss state
+ * is updated. */
 function partLost(c: num, part: num) {
+    if (part == 0) {
+        destroyMech(c);
+        return;
+    }
     if (part >= 6 && (part - 6) % 2 == 0 && partIntact(c, part + 1) == 1) {
         global hbHp[global mPartStart[c] + part + 1] = 0;
         partDestroyed(c, part + 1);
     }
-    if (part != 0) {
-        throwDebris(c, part);
-    }
+    throwDebris(c, part);
     updateLoss(c);
 }
 

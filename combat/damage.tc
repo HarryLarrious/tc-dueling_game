@@ -14,6 +14,8 @@ declare global hbHpMax: list[num];
 /** Velocity change from hits waiting for the chassis (MEC-30 adds it to
  * vel and clears it). Impulses are already divided by the mech's mass. */
 declare global mImpulse: list[vec];
+/** Mech that last hit each mech (0 = none or unknown). */
+declare global mLastHit: list[num];
 
 /** Starting HP of part i (0 = hull) of mech c. */
 function basePartHp(c: num, i: num): num {
@@ -45,19 +47,24 @@ function addDamageState(c: num) {
         global hbHpMax.append(line hp);
     }
     global mImpulse.append(vec(0, 0, 0));
+    global mLastHit.append(0);
 }
 
 /** The damage funnel: part `part` (0 = hull) of mech c takes `amount` raw
  * damage and the mech gets `impulse` (blocks per tick times mass). Armor
- * reduction comes first, then part HP. Returns the damage dealt (0 when the
- * mech or part is already gone). */
-function applyHit(c: num, part: num, amount: num, impulse: vec): num {
+ * reduction comes first, then part HP. `source` is the attacking mech (0 =
+ * none). Returns the damage dealt (0 when the mech or part is already
+ * gone). */
+function applyHit(c: num, part: num, amount: num, impulse: vec, source: num = 0): num {
     if (c < 1 || c > global mCount || global mAlive[c] != 1) {
         return 0;
     }
     line k = global mPartStart[c] + part;
     if (global hbHp[line k] <= 0) {
         return 0;
+    }
+    if (source != 0) {
+        global mLastHit[c] = source;
     }
     line mass = (global mStats[c])["mass"] as num;
     global mImpulse[c] = global mImpulse[c] + impulse * (1 / line mass);
@@ -72,9 +79,9 @@ function applyHit(c: num, part: num, amount: num, impulse: vec): num {
 
 /** Splash: every part of every live mech whose center is within radius of
  * point at takes amount scaled linearly from full at the center to 0 at the
- * edge, pushed away from the center by up to `push`. Returns the total
- * damage dealt. */
-function splashHit(at: vec, radius: num, amount: num, push: num): num {
+ * edge, pushed away from the center by up to `push`, from mech `source`.
+ * Returns the total damage dealt. */
+function splashHit(at: vec, radius: num, amount: num, push: num, source: num = 0): num {
     line total = 0;
     repeat (line c to global mCount) {
         if (global mAlive[line c] == 1 && (global mBoundAt[line c] - at).len() <= global mBound[line c] + radius) {
@@ -86,7 +93,7 @@ function splashHit(at: vec, radius: num, amount: num, push: num): num {
                 if (line away.len() > 0.01) {
                     line dir = line away.setLength(1);
                 }
-                line total += applyHit(line c, line i, amount * line fall, line dir * push * line fall);
+                line total += applyHit(line c, line i, amount * line fall, line dir * push * line fall, source);
             }
         }
     }
@@ -94,8 +101,8 @@ function splashHit(at: vec, radius: num, amount: num, push: num): num {
 }
 
 /** Part `part` of mech c just reached 0 HP: its hitbox stops taking hits
- * and the part-loss effects and debris run (partLost, combat/loss.tc). Mech
- * destruction when the hull goes (MEC-38) hooks in here. */
+ * and the part-loss effects and debris run (partLost, combat/loss.tc); the
+ * hull destroys the mech (destroyMech, combat/destroy.tc). */
 function partDestroyed(c: num, part: num) {
     line k = global mPartStart[c] + part;
     global hbKind[line k] = 0;

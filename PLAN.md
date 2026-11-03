@@ -332,6 +332,15 @@ ballistic arc (~1 s), then is removed.
   leaves the thigh. Debris is the part's own display: thrown out and up,
   spinning, bouncing on the floor, written every 2 ticks, removed after 24
   ticks. Damaged model variants wait for the final models (MEC-82/86).
+- **Destruction as built** (`combat/destroy.tc`, MEC-38): the hull at 0 HP
+  calls `destroyMech`: `mAlive` 0 (no driving, drawing, hits, push-out),
+  every part including the hull becomes debris, an explosion and smoke play
+  at the wreck, the seat is removed (dismounting the pilot) and
+  `pilotLost(mech, uuid)` hands the pilot to the mode (FFA respawn MEC-65,
+  spectate MEC-70). `applyHit` and `splashHit` take an optional `source`
+  mech, kept in `mLastHit` for the killfeed (MEC-58); the wreck point is
+  `mBoundAt`. Destroyed mechs keep their list slots (indices stay stable);
+  reusing them is MEC-102.
 
 ## Modes and map
 

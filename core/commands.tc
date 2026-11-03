@@ -2,8 +2,8 @@
 
 /** One-time setup the first time any code runs on the plot. */
 function ensureInitialized {
-    if (global initialized != 11) {
-        // 11: every part has a hitbox, HP and loss state (combat/); older
+    if (global initialized != 12) {
+        // 12: every part has a hitbox, HP and loss state (combat/); older
         // mechs have none. Hull displays of plots from before 8 (mBody) are removed.
         for (line body of global mBody as list) {
             select entitiesByName(line body as str);
@@ -14,7 +14,7 @@ function ensureInitialized {
         clearMechs();
         resetConfig();
         global floorSet = 0;
-        global initialized = 11;
+        global initialized = 12;
     }
     ensureCatalog();
 }
@@ -65,6 +65,7 @@ function clearMechs {
     global hbHpMax = [];
     global mImpulse = [];
     global mLoss = [];
+    global mLastHit = [];
     clearDebris();
     global mLoadout = [];
     global mClass = [];
