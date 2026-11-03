@@ -29,7 +29,8 @@ class skeletons of placeholder parts, `@cpu` gauge). Next: the Stage 1 spikes in
 | `combat/loss.tc` | Part-loss effects per class (mobility, guns, torso lock, augments) and debris |
 | `combat/destroy.tc` | Mech destruction: wreck effect, all parts to debris, seat removed, pilot handed to the mode |
 | `combat/hitbox.tc` | Part hitboxes (boxes and leg capsules from the drawn displays), segment and splash queries, `@hitbox @hit` |
-| `game/ maps/` | Empty until their stages |
+| `game/pack.tc` | Join flow: resource pack on join, loading title, decline handling, `packUrl()` of the published pack |
+| `maps/` | Empty until its stage |
 | `ui/markers.tc` | UI marker colors and run-time MiniMessage |
 | `ui/hud.tc` | Combat HUD channels: panels of text items on boss bars, exact layout, send-on-change |
 | `ui/schema.tc` | Damage schema and shield bar on the pilot's HUD |

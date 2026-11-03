@@ -91,6 +91,20 @@ function runSelfTest {
     ensureFloor();
     ensureCatalog();
 
+    // Join flow (MEC-71): the pack sent on join loads (the test client
+    // accepts server packs), within 10 s.
+    line waited = 0;
+    while (packLoaded(default.uuid) == 0 && line waited < 200) {
+        wait(5);
+        line waited += 5;
+    }
+    checkNum("pack loaded after join", packLoaded(default.uuid), 1, 0);
+    line using = 0;
+    if (default.isUsingResourcePack()) {
+        line using = 1;
+    }
+    checkNum("client using the pack", line using, 1, 0);
+
     // Catalog and loadouts.
     checkNum("catalog walker hp", partNum("walker", "hp"), 400, 0);
     line walkerLo = defaultLoadout("walker");

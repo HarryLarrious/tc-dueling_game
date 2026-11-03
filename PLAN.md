@@ -755,6 +755,14 @@ low HP, visor; the HUD stays sharp over all of them.
   makes clients fetch a changed pack. An unchanged pack keeps its name.
 - Join flow: `sendResourcePack` → `resourcePackLoad` → menu room;
   `resourcePackDecline` → explain why the pack is needed, offer a retry.
+  As built (`game/pack.tc`, MEC-71): join sends the pack and shows a loading
+  title; `resourcePackLoad` clears it, hides the hand and calls `packReady`
+  (where the menu room hooks in); a decline explains and puts `@pack` in the
+  chat box (a click cannot send a chat command). `packState` per player
+  (pending / loaded / declined); piloting needs `packLoaded`. DF has no
+  pack-failure event, so a failed download stays pending until a retry.
+  The published pack's URL is `packUrl()` in `game/pack.tc`: update it after
+  every `--publish`.
 
 **Model rules**
 

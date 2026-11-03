@@ -40,7 +40,8 @@ mechs per map, 60 live projectiles (PLAN.md, CPU rules).
 - **Resource pack**: every change under `pack/` must pass
   `python3 tools/build_pack.py --check` (JSON, resource-location names, and
   every shader compiled with `glslc` under the 26.3 define sets). Publish with
-  `--publish`, then push `pack-dist` (on the host, see below). An overridden
+  `--publish`, then push `pack-dist` (on the host, see below) and set the
+  printed URL in `packUrl()` (`game/pack.tc`). An overridden
   `minecraft:core/*` shader needs an entry in `tools/shader_variants.json`.
 - **Minecraft source**: the `minecraft-source` MCP has the decompiled 26.3
   client, its shaders and resources. Check render and shader facts there

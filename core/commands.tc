@@ -115,6 +115,10 @@ function leaveMech {
 
 /** Puts the player in the seat of mech c and makes them its driver. */
 function sitMech(c: num) {
+    if (packLoaded(default.uuid) != 1) {
+        default.sendMessage(s"<red>The resource pack has not loaded.</red> <gray>Piloting needs it; try <yellow>@pack</yellow>.");
+        return;
+    }
     if (line c > global mCount || global mAlive[line c] != 1) {
         default.sendMessage(s"<gray>Mech <white>%var(c)</white> does not exist or is destroyed.");
         return;
@@ -241,6 +245,7 @@ playerevent join {
     default.setToCreativeMode();
     restartLoop();
     packJoin();
+    packSend();
     privHideFrom(default.uuid);
     default.sendMessage(s"<gold>Mechs <gray>- type <yellow>@help</yellow> for commands.");
     selfTestJoin();

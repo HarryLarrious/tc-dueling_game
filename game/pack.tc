@@ -1,0 +1,61 @@
+// Join flow (PLAN.md, Pack source and hosting; MEC-71): every player gets
+// the resource pack on join. Until it loads they see a loading title; when it
+// loads the hand is hidden and the player goes on (the menu room, MEC-72,
+// hooks into packReady). Declining explains why the pack is needed and puts
+// "@pack" in the chat box to try again. Piloting a mech needs the pack
+// (packLoaded); there is no pack-failure event, so a failed download stays
+// "pending" until the player retries.
+
+/** Pack state per player: uuid -> "pending", "loaded" or "declined". */
+declare global packState: dict;
+
+/** The published pack (tools/build_pack.py --publish prints it). */
+function packUrl(): str {
+    return "https://raw.githubusercontent.com/HarryLarrious/tc-mech_game/pack-dist/mech-pack-b3296e13b3f4.zip";
+}
+
+/** Sends the pack to the player and shows the loading title. */
+function packSend {
+    global packState[default.uuid] = "pending";
+    default.sendResourcePack(packUrl());
+    default.sendTitle(miniMessage("<font:mech:text_l><#78DBFF>MECHS"), miniMessage("<gray>Loading the game's resource pack..."), 600, 0, 10);
+}
+
+/** 1 when the player's pack has loaded. */
+function packLoaded(uuid: str): num {
+    if (global packState.hasKeys(uuid) && global packState[uuid] as str == "loaded") {
+        return 1;
+    }
+    return 0;
+}
+
+playerevent resourcePackLoad {
+    global packState[default.uuid] = "loaded";
+    default.sendTitle(s" ", s" ", 1, 0, 5);
+    hideHand();
+    packReady();
+}
+
+playerevent resourcePackDecline {
+    global packState[default.uuid] = "declined";
+    default.sendTitle(s" ", s" ", 1, 0, 5);
+    default.sendMessage(s"<red>Resource pack declined.</red> <gray>Mechs are drawn entirely by it: models, HUD, menus and sounds. Nothing works without it.");
+    default.sendMessage(miniMessage("<gray>Allow server resource packs and <click:suggest_command:'@pack'><hover:show_text:'Puts @pack in your chat box'><yellow><u>try again with @pack</u></yellow></hover></click>."));
+}
+
+/** The pack loaded: the player may go on. The menu room (MEC-72) hooks in
+ * here. */
+function packReady {
+    default.sendMessage(s"<green>Pack loaded.</green> <gray>Type <yellow>@help</yellow> for commands.");
+}
+
+/** Empties the inventory and holds one blank item (model mech:blank) in
+ * hotbar slot 1: the hotbar shows nothing, and with an item in hand the
+ * first-person arm is not drawn. Its name is a 1-pixel space glyph, so the
+ * item name popup above the hotbar is empty too. */
+function hideHand {
+    line blank = item("paper").setModel("mech:blank").setName(miniMessage("<font:mech:ui>\uF821")).setTooltipVisible(tooltip="Disable");
+    default.clearInventory(clearMode="Entire inventory");
+    default.setHotbarItems(line blank);
+    default.setHotbarSlot(1);
+}

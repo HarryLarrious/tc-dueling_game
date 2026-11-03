@@ -21,11 +21,6 @@ declare global "menuHover %uuid": num;
 /** The player's post-effect marker display (@fx). */
 declare global "fxMark %uuid": str;
 
-/** The newest pack on pack-dist (tools/build_pack.py --publish prints it). */
-function defaultPackUrl(): str {
-    return "https://raw.githubusercontent.com/HarryLarrious/tc-mech_game/pack-dist/mech-pack-b3296e13b3f4.zip";
-}
-
 /** Remembers an entity for @pack clear. */
 function trackEntity(uuid: str) {
     global packEnts.append(uuid);
@@ -77,11 +72,11 @@ function packCommand(parts: list) {
         }
         return;
     }
-    line url = defaultPackUrl();
-    if (line sub != "") {
-        line url = line sub;
+    if (line sub == "") {
+        packSend();
+        return;
     }
-    sendPack(line url);
+    sendPack(line sub);
 }
 
 /** Sends a pack to the player. */
@@ -107,32 +102,11 @@ function packClear {
     default.sendMessage(s"<gray>Pack spike entities and boss bars cleared.");
 }
 
-playerevent resourcePackLoad {
-    hideHand();
-    default.sendMessage(s"<green>Pack loaded.");
-}
-
-/** Empties the inventory and holds one blank item (model mech:blank) in
- * hotbar slot 1: the hotbar shows nothing, and with an item in hand the
- * first-person arm is not drawn. Its name is a 1-pixel space glyph, so the
- * item name popup above the hotbar is empty too. */
-function hideHand {
-    line blank = item("paper").setModel("mech:blank").setName(miniMessage("<font:mech:ui>\uF821")).setTooltipVisible(tooltip="Disable");
-    default.clearInventory(clearMode="Entire inventory");
-    default.setHotbarItems(line blank);
-    default.setHotbarSlot(1);
-}
-
-playerevent resourcePackDecline {
-    default.sendMessage(s"<red>Pack declined.</red> <gray>The game needs it for models and UI; <yellow>@pack</yellow> to try again.");
-}
-
-/** On join: send the pack and hide every private spike entity from the new player. */
+/** On join: hide every private spike entity from the new player. */
 function packJoin {
     if (global packPrivate.len() > 0) {
         default.setEntityHidden(global packPrivate, hidden="Enable");
     }
-    sendPack(defaultPackUrl());
 }
 
 // ---------------------------------------------------------------- @hud
