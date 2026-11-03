@@ -1,0 +1,169 @@
+// Loadouts (PLAN.md, Parts and loadouts): a class plus one prebuilt part per
+// slot. A loadout is a dict with keys cls, main, secondary, armor, aug1,
+// aug2, cosmetic, each a part id from mech/catalog.tc. Derived stats are
+// computed when a loadout is set or a mech spawns, never per tick.
+
+/** The player's saved loadout. */
+declare saved "loadout %uuid": dict;
+
+/** Loadout slot -> catalog slot. */
+function slotOf(key: str): str {
+    if (key == "aug1" || key == "aug2") {
+        return "augment";
+    }
+    if (key == "cosmetic") {
+        return "cosmetic";
+    }
+    return key;
+}
+
+/** Default part of a catalog slot for class cls, skipping `avoid`: the first
+ * fit in catalog order, except main guns, where the lightest allowed size
+ * wins (a spider defaults to a light gun, a walker to its heavy one). */
+function firstFit(slot: str, cls: str, avoid: str): str {
+    line fits = partsFor(slot, cls);
+    if (slot == "main") {
+        for (line size of ["light", "medium", "heavy"]) {
+            for (line id of line fits) {
+                if (partStr(line id as str, "sizeClass") == line size as str) {
+                    return line id as str;
+                }
+            }
+        }
+    }
+    for (line id of line fits) {
+        if (line id as str != avoid) {
+            return line id as str;
+        }
+    }
+    return "";
+}
+
+/** A complete, legal loadout from any dict: unknown class becomes walker,
+ * every missing or disallowed part becomes the class's first fit, and the
+ * two augments are kept different. */
+function validLoadout(raw: dict): dict {
+    line cls = "walker";
+    if (raw.hasKeys("cls") && allClasses().find(raw["cls"] as str) != 0) {
+        line cls = raw["cls"] as str;
+    }
+    line out = {cls: line cls};
+    for (line key of ["main", "secondary", "armor", "aug1", "cosmetic"]) {
+        line want = "";
+        if (raw.hasKeys(line key as str)) {
+            line want = raw[line key as str] as str;
+        }
+        line slot = slotOf(line key as str);
+        if (partStr(line want, "slot") != line slot || partAllows(line want, line cls) != 1) {
+            line want = firstFit(line slot, line cls, "");
+        }
+        line out[line key as str] = line want;
+    }
+    line aug2 = "";
+    if (raw.hasKeys("aug2")) {
+        line aug2 = raw["aug2"] as str;
+    }
+    if (partStr(line aug2, "slot") != "augment" || line aug2 == line out["aug1"] as str) {
+        line aug2 = firstFit("augment", line cls, line out["aug1"] as str);
+    }
+    line out["aug2"] = line aug2;
+    return line out;
+}
+
+/** The default loadout of a class. */
+function defaultLoadout(cls: str): dict {
+    return validLoadout({cls: cls});
+}
+
+/** The player's loadout, valid (a fresh walker the first time). */
+function playerLoadout(): dict {
+    line raw = saved "loadout %uuid";
+    if (raw.len() == 0) {
+        return defaultLoadout("walker");
+    }
+    return validLoadout(raw);
+}
+
+/** Derived stats of a valid loadout:
+ *   mass      sum of all part masses
+ *   load      extra mass over the bare class, as a fraction of its mass
+ *   speed, turn, traverse   class base / (1 + 0.25 load)
+ *   accel     class base / (1 + 0.5 load)
+ *   hullHp    class HP * (1 + armor HP bonus); reduction from the armor
+ *   a spider with a heavy main gun is 15% slower and climbs at 60% speed. */
+function deriveStats(lo: dict): dict {
+    line cls = lo["cls"] as str;
+    line mass = 0;
+    for (line key of ["cls", "main", "secondary", "armor", "aug1", "aug2"]) {
+        line mass += partNum(lo[line key as str] as str, "mass");
+    }
+    line base = partNum(line cls, "mass");
+    line load = (line mass - line base) / line base;
+    line soft = 1 / (1 + 0.25 * line load);
+    line speed = partNum(line cls, "speed") * line soft;
+    line climb = partNum(line cls, "climbs");
+    if (line cls == "spider" && partStr(lo["main"] as str, "sizeClass") == "heavy") {
+        line speed *= 0.85;
+        line climb *= 0.6;
+    }
+    line armor = lo["armor"] as str;
+    return {
+        mass: line mass,
+        load: line load,
+        speed: line speed,
+        accel: partNum(line cls, "accel") / (1 + 0.5 * line load),
+        turn: partNum(line cls, "turn") * line soft,
+        traverse: partNum(line cls, "traverse") * line soft,
+        step: partNum(line cls, "step"),
+        legs: partNum(line cls, "legs"),
+        space: partStr(line cls, "space"),
+        climb: line climb,
+        hullHp: partNum(line cls, "hp") * (1 + partNum(line armor, "hpBonus")),
+        reduction: partNum(line armor, "reduction")
+    };
+}
+
+/** Prints a loadout and its derived stats to the player. */
+function showLoadout(lo: dict) {
+    line cls = lo["cls"] as str;
+    line main = lo["main"] as str;
+    line sec = lo["secondary"] as str;
+    line armor = lo["armor"] as str;
+    line aug1 = lo["aug1"] as str;
+    line aug2 = lo["aug2"] as str;
+    line st = deriveStats(lo);
+    line mass = st["mass"] as num;
+    line speed = num.floor(st["speed"] as num * 20 * 100) / 100;
+    line turn = num.floor(st["turn"] as num * 20);
+    line hp = num.floor(st["hullHp"] as num);
+    line red = num.floor(st["reduction"] as num * 100);
+    default.sendMessage(s"<gold>%var(cls)</gold> <gray>main <white>%var(main)</white> secondary <white>%var(sec)</white> armor <white>%var(armor)</white> augments <white>%var(aug1)</white>, <white>%var(aug2)</white>");
+    default.sendMessage(s"<gray>mass <white>%var(mass)</white> speed <white>%var(speed)</white> b/s turn <white>%var(turn)</white>°/s hull <white>%var(hp)</white> HP armor <white>%var(red)</white>%");
+}
+
+/** @loadout [class <id> | main|secondary|armor|aug1|aug2|cosmetic <id> | reset]:
+ * shows or edits the player's saved loadout; edits are validated. */
+function loadoutCommand(parts: list) {
+    line lo = playerLoadout();
+    if (parts.len() >= 2) {
+        line key = parts[2] as str;
+        if (line key == "reset") {
+            line lo = defaultLoadout(line lo["cls"] as str);
+        } else if (parts.len() >= 3) {
+            line value = parts[3] as str;
+            if (line key == "class") {
+                // A new class keeps the parts it allows and refits the rest.
+                line lo["cls"] = line value;
+            } else if (line lo.hasKeys(line key)) {
+                if (partStr(line value, "slot") != slotOf(line key) || partAllows(line value, line lo["cls"] as str) != 1) {
+                    default.sendMessage(s"<red>%var(value)</red> <gray>does not fit slot %var(key) on this class; see <yellow>@parts</yellow>.");
+                    return;
+                }
+                line lo[line key] = line value;
+            }
+            line lo = validLoadout(line lo);
+        }
+        saved "loadout %uuid" = line lo;
+    }
+    showLoadout(line lo);
+}

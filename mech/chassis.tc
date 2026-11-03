@@ -1,5 +1,6 @@
-// The kinematic chassis: spawn a mech, move it each tick, draw it. Until
-// pack models arrive, a mech is drawn as one placeholder hull box.
+// The kinematic chassis: spawn a mech from a loadout, move it each tick, draw
+// it. Until pack models arrive, a mech is drawn as one placeholder hull box
+// in its class's hull size.
 
 /** Sets the floor height and arena center at the player's feet. */
 function setFloorHere {
@@ -32,13 +33,22 @@ function forwardVec(): vec {
     return line flat.setLength(1);
 }
 
-/** Spawns a bare chassis 6 blocks ahead: seat + placeholder hull box. */
-function spawnChassis {
+/** Spawns a mech from a loadout 6 blocks ahead: seat + placeholder hull box
+ * in the class's hull size. Derived stats are computed here, once. */
+function spawnMech(lo: dict) {
     ensureFloor();
+    line lo = validLoadout(lo);
+    line cls = lo["cls"] as str;
     line f = forwardVec();
     global mCount += 1;
     line c = global mCount;
-    line s = global bodySize;
+    // Catalog hull box is (side, up, forward); mSize is (forward, up, side).
+    line hull = partRow(line cls)["size"] as vec;
+    line s = vec(line hull.z, line hull.y, line hull.x);
+    global mSize.append(line s);
+    global mLoadout.append(line lo);
+    global mClass.append(line cls);
+    global mStats.append(deriveStats(line lo));
     global mRad.append(num.root(line s.x * line s.x + line s.z * line s.z) * 0.5);
     global mPos.append(vec(global arenaX + line f.x * 6, global floorY + global mechHover, global arenaZ + line f.z * 6));
     global mYaw.append(default.bodyYaw);
@@ -58,6 +68,7 @@ function spawnChassis {
 
     line rad = global mRad[line c];
     default.sendMessage(s"<gray>Mech <white>%var(c)</white> spawned, radius <white>%var(rad)</white>. Sit with <yellow>@sit <white>%var(c)</white>");
+    showLoadout(line lo);
 }
 
 /** Per-tick kinematic update for mech c: pilot input -> pos + facing. */
@@ -141,7 +152,7 @@ function drawMech(c: num) {
     // so faces point outward. Same side vector drives offsets and columns.
     line r = vec(0 - line f.z, 0, line f.x);
     line base = global mPos[line c];
-    line s = global bodySize;
+    line s = global mSize[line c];
     line p = line base + vec(0, line s.y * 0.5, 0);
     line c0 = line r * line s.z;
     line c1 = vec(0, line s.y, 0);

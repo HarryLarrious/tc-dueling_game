@@ -136,7 +136,20 @@ Each class has a fixed skeleton. A loadout picks one prebuilt part per slot:
   `catalogVersion()` after editing the data so plots rebuild it. `@parts
   [slot] [class]` lists the catalog. First-pass numbers, balanced in play.
 - **Derived stats** (speed, acceleration, turn and traverse rates, mass) are
-  computed when a loadout changes, never per tick.
+  computed when a loadout changes, never per tick. In `mech/loadout.tc`
+  (MEC-33): `mass` = sum of part masses; `load` = extra mass over the bare
+  class ÷ class mass; speed, turn and traverse = class base ÷ (1 + 0.25·load);
+  acceleration = class base ÷ (1 + 0.5·load); hull HP = class HP × (1 +
+  armor HP bonus); damage reduction from the armor; a spider with a heavy
+  main gun is 15% slower and climbs at 60% speed. Default loadouts take the
+  lightest main gun the class allows and the first fit for every other
+  slot; `validLoadout` refits any illegal or missing slot and keeps the two
+  augments different. A mech stores its loadout, class, stats and hull size
+  at spawn (`mLoadout`, `mClass`, `mStats`, `mSize`); the chassis
+  integration (MEC-24) reads `mStats`.
+- **Commands**: `@loadout` shows yours with its stats; `@loadout <slot|class>
+  <id>` and `@loadout reset` edit it (saved per player); `@mech` spawns it,
+  `@mech <class>` spawns that class's default loadout.
 - **Upgrades**: each part has an upgrade tree, bought with upgrade points,
   that raises its stats inside a capped range.
 - **Persistence**: loadouts, unlocks, upgrade points, cosmetic credits and
