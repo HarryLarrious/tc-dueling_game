@@ -232,8 +232,7 @@ function mechHelp {
 
 playerevent join {
     default.setToCreativeMode();
-    ensureInitialized();
-    ensureLoop();
+    restartLoop();
     packJoin();
     default.sendMessage(s"<gold>Mechs <gray>- type <yellow>@help</yellow> for commands.");
     selfTestJoin();

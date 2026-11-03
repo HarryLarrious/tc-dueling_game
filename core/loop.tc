@@ -25,6 +25,15 @@ function ensureLoop {
     }
 }
 
+/** Starts a fresh mech loop now; an older one sees the newer loopId and
+ * ends. Used on join, where the old loop may have been stopped (dev/play
+ * switch) moments after its last heartbeat, which ensureLoop would read as
+ * still running. */
+function restartLoop {
+    ensureInitialized();
+    start mechLoop;
+}
+
 process mechLoop {
     global loopId += 1;
     line myId = global loopId;

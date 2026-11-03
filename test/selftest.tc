@@ -77,6 +77,9 @@ function runSelfTest {
     global testPass = 0;
     global testFail = 0;
     default.sendMessage(s"<gold>MECHTEST BEGIN");
+    // The mech loop runs without any command having started it (MEC-101).
+    line beat = game.ticksSinceStartup - global lastBeat;
+    checkNum("mech loop running", line beat, 0, 2);
     clearMechs();
     ensureFloor();
     ensureCatalog();
@@ -163,12 +166,7 @@ function runSelfTest {
     testKill(line spider, 9);
     checkNum("spider 2 legs immobile", lossNum(line spider, "mobility"), 0, 0);
 
-    // The mech loop is running (it moves debris), then debris lands and is
-    // removed after about a second.
-    ensureLoop();
-    wait(5);
-    line beat = game.ticksSinceStartup - global lastBeat;
-    checkNum("mech loop running", line beat, 0, 2);
+    // Debris lands and is removed after about a second.
     wait(30);
     checkNum("debris cleaned up", global dbEnt.len(), 0, 0);
 
