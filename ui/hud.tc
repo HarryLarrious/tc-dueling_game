@@ -1,0 +1,212 @@
+// Combat HUD channels (PLAN.md, UI and HUD; MEC-53). Persistent panels are
+// boss bar titles: three bars (slots 0-2) exist for every HUD player, always
+// created in order so the shader's slot (from the bar's screen position)
+// matches. A panel is a set of text items at one canvas anchor; several
+// panels share a bar. Every item is laid out from the bar's center and
+// rewound to it with spacing glyphs, so a title's total advance is 0 and
+// each item lands exactly at its anchor offset, whatever else is in the bar.
+// Lines come from the mech:hud/<size>_<row> fonts, each moved down by row *
+// 4 canvas units. A player's bars are resent only when their text changes.
+//
+// Item: {text, size ("s" 7, "m" 10, "l" 16 units), palette (0 white, 1 grey,
+// 2 dark grey, 3 cyan, 4 amber, 5 red, 6 green), x (canvas units from the
+// anchor), row (-18..18, 4 units each; row 0 puts the text's top at about
+// the anchor, so text sits below it and bottom-anchored text needs rows
+// above -size/4), align ("left", "center", "right")}.
+
+/** Panels per player: uuid -> panel id -> {anchor, slot, items}. */
+declare global hudPanels: dict;
+/** Boss bar titles last sent per player: uuid -> [slot 0, slot 1, slot 2]. */
+declare global hudSent: dict;
+/** Quarter-unit advances per HUD font size (hudfont.tc), built once. */
+declare global hudAdv: dict;
+
+/** One HUD text item (see the file comment). */
+function hudItem(text: str, size: str, palette: num, x: num, row: num, align: str): dict {
+    return {text: text, size: size, palette: palette, x: x, row: row, align: align};
+}
+
+/** Width of text in HUD font size `size`, in canvas units (characters the
+ * font lacks count 0). */
+function hudWidth(text: str, size: str): num {
+    if (!global hudAdv.hasKeys(size)) {
+        global hudAdv[size] = hudAdvances(size);
+    }
+    line adv = global hudAdv[size] as list;
+    line chars = hudChars();
+    line q = 0;
+    repeat (line i to text.len()) {
+        line at = line chars.find(text.trim(line i, line i));
+        if (line at > 0) {
+            line q += line adv[line at] as num;
+        }
+    }
+    return line q / 4;
+}
+
+/** Spacing glyphs (mech:ui) that move the pen by `units` canvas units,
+ * rounded to a quarter unit; negative moves left. */
+function hudSpace(units: num): str {
+    line q = num.round(num.abs(units) * 4);
+    if (line q == 0) {
+        return "";
+    }
+    line whole = num.floor(line q / 4);
+    line frac = line q % 4;
+    line out = "";
+    line steps = [64, 32, 16, 8, 4, 2, 1];
+    line back = ["", "", "", "", "", "", ""];
+    line fwd = ["", "", "", "", "", "", ""];
+    repeat (line k to 7) {
+        line step = line steps[line k] as num;
+        while (line whole >= line step) {
+            if (units < 0) {
+                line out = line out + (line back[line k] as str);
+            } else {
+                line out = line out + (line fwd[line k] as str);
+            }
+            line whole -= line step;
+        }
+    }
+    if (line frac > 0) {
+        if (units < 0) {
+            line out = line out + ["", "", ""][line frac] as str;
+        } else {
+            line out = line out + ["", "", ""][line frac] as str;
+        }
+    }
+    return "<font:mech:ui>%var(out)</font>";
+}
+
+/** HUD font for size s/m/l moved down by `row` rows. */
+function hudFont(size: str, row: num): str {
+    line r = num.clamp(num.round(row), -18, 18);
+    if (line r < 0) {
+        line up = 0 - line r;
+        return "mech:hud/%var(size)_n%var(up)";
+    }
+    return "mech:hud/%var(size)_%var(r)";
+}
+
+/** MiniMessage for one item of a panel at `anchor` in bar `slot`: move to
+ * its start, draw it in its marker color, move back to the bar center. */
+function hudItemMarkup(it: dict, anchor: num, slot: num): str {
+    line text = it["text"] as str;
+    line size = it["size"] as str;
+    line w = hudWidth(line text, line size);
+    line x0 = it["x"] as num;
+    if (it["align"] as str == "center") {
+        line x0 -= line w / 2;
+    } else if (it["align"] as str == "right") {
+        line x0 -= line w;
+    }
+    line color = uiColor(252, anchor * 3 + slot, it["palette"] as num);
+    line font = hudFont(line size, it["row"] as num);
+    line safe = line text.replace("\\", "\\\\").replace("<", "\\<");
+    line go = hudSpace(line x0);
+    line back = hudSpace(0 - line x0 - line w);
+    return "%var(go)<font:%var(font)><color:%var(color)>%var(safe)</color></font>%var(back)";
+}
+
+/** Sets (or replaces) the player's panel `id`: items at canvas `anchor`
+ * (0-8, reading order) in boss bar `slot` (0-2). Call hudFlush to send. */
+function hudSet(uuid: str, id: str, anchor: num, slot: num, items: list) {
+    line mine = {};
+    if (global hudPanels.hasKeys(uuid)) {
+        line mine = global hudPanels[uuid] as dict;
+    }
+    line mine[id] = {anchor: anchor, slot: slot, items: items};
+    global hudPanels[uuid] = line mine;
+}
+
+/** Removes the player's panel `id`. Call hudFlush to send. */
+function hudRemove(uuid: str, id: str) {
+    if (global hudPanels.hasKeys(uuid)) {
+        line mine = global hudPanels[uuid] as dict;
+        if (line mine.hasKeys(id)) {
+            line mine.remove(id);
+            global hudPanels[uuid] = line mine;
+        }
+    }
+}
+
+/** Boss bar slot `slot`'s title markup for the player (all its panels). */
+function hudTitle(uuid: str, slot: num): str {
+    line out = "";
+    if (global hudPanels.hasKeys(uuid)) {
+        for (line id, line panel of global hudPanels[uuid] as dict) {
+            line p = line panel as dict;
+            if (line p["slot"] as num == slot) {
+                for (line item of line p["items"] as list) {
+                    line out = line out + hudItemMarkup(line item as dict, line p["anchor"] as num, slot);
+                }
+            }
+        }
+    }
+    return line out;
+}
+
+/** Sends the player's boss bars whose text changed since the last flush.
+ * The first flush creates all three bars in order. */
+function hudFlush(uuid: str) {
+    line sent = ["", "", ""];
+    line fresh = 0;
+    if (global hudSent.hasKeys(uuid)) {
+        line sent = global hudSent[uuid] as list;
+    } else {
+        line fresh = 1;
+    }
+    select playersByName(uuid);
+    repeat (line n to 3) {
+        line title = hudTitle(uuid, line n - 1);
+        if (line fresh == 1 || line title != line sent[line n] as str) {
+            selected.setBossBar(miniMessage(line title), 0, 1, line n);
+            line sent[line n] = line title;
+        }
+    }
+    select reset;
+    global hudSent[uuid] = line sent;
+}
+
+/** Drops the player's HUD: panels, sent titles and the boss bars. */
+function hudReset(uuid: str) {
+    if (global hudPanels.hasKeys(uuid)) {
+        global hudPanels.remove(uuid);
+    }
+    if (global hudSent.hasKeys(uuid)) {
+        global hudSent.remove(uuid);
+    }
+    select playersByName(uuid);
+    selected.removeBossBar();
+    select reset;
+}
+
+/** `value` rounded down to a multiple of `step`, so per-tick values (like
+ * cooldowns) change the HUD text, and resend, only once per step. */
+function hudQuant(value: num, step: num): num {
+    return num.floor(value / step) * step;
+}
+
+/** A demo HUD in the combat layout (party top left, damage schema right,
+ * weapon panel bottom right, reticle readout center) for checking the
+ * layout in game. */
+function hudDemo(uuid: str) {
+    hudSet(uuid, "party", 0, 0, [
+        hudItem("PARTY", "s", 1, 12, 2, "left"),
+        hudItem("WALKER  440", "m", 3, 12, 5, "left"),
+        hudItem("SPIDER  150", "m", 0, 12, 9, "left"),
+        hudItem("CRAWLER 480", "m", 4, 12, 13, "left")
+    ]);
+    hudSet(uuid, "schema", 5, 1, [
+        hudItem("HULL 350/440", "m", 0, -12, -4, "right"),
+        hudItem("TORSO 264", "m", 3, -12, 0, "right"),
+        hudItem("LEGS 2/2", "m", 6, -12, 4, "right")
+    ]);
+    hudSet(uuid, "weapon", 8, 2, [
+        hudItem("RAILGUN", "l", 3, -12, -13, "right"),
+        hudItem("READY", "s", 6, -12, -8, "right"),
+        hudItem(".50 CAL  2.5s", "m", 1, -12, -5, "right")
+    ]);
+    hudSet(uuid, "reticle", 4, 0, [hudItem("+", "l", 3, 0, 1, "center")]);
+    hudFlush(uuid);
+}

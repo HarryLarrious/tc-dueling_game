@@ -29,7 +29,10 @@ class skeletons of placeholder parts, `@cpu` gauge). Next: the Stage 1 spikes in
 | `combat/loss.tc` | Part-loss effects per class (mobility, guns, torso lock, augments) and debris |
 | `combat/destroy.tc` | Mech destruction: wreck effect, all parts to debris, seat removed, pilot handed to the mode |
 | `combat/hitbox.tc` | Part hitboxes (boxes and leg capsules from the drawn displays), segment and splash queries, `@hitbox @hit` |
-| `game/ ui/ maps/` | Empty until their stages |
+| `game/ maps/` | Empty until their stages |
+| `ui/markers.tc` | UI marker colors and run-time MiniMessage |
+| `ui/hud.tc` | Combat HUD channels: panels of text items on boss bars, exact layout, send-on-change |
+| `ui/hudfont.tc` | Generated HUD font advances (`pack/src/hud_assets.py`) |
 | `pack/` | Resource pack source (`pack.mcmeta`, `assets/`; `src/` for Blockbench files and asset generators, not shipped) |
 | `pack/assets/minecraft/shaders/core/text.vsh`, `pack/assets/mech/shaders/include/ui.glsl` | Text shader: HUD glyphs, screen-locked menu panels, cursor (marker protocol in PLAN.md, UI and HUD) |
 | `test/selftest.tc` | Automated self-test: runs on join (entering play mode) and `@selftest`, prints `MECHTEST` lines |

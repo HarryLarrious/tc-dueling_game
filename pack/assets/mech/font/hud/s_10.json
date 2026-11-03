@@ -1,0 +1,14 @@
+{
+  "providers": [
+    {
+      "type": "ttf",
+      "file": "mech:rajdhani-hud.ttf",
+      "size": 7,
+      "oversample": 4,
+      "shift": [
+        0,
+        40
+      ]
+    }
+  ]
+}

@@ -185,10 +185,26 @@ function runSelfTest {
     wait(30);
     checkNum("debris cleaned up", global dbEnt.len(), 0, 0);
 
+    // HUD layout (MEC-53): widths match the client's font layout and items
+    // rewind to the bar center.
+    checkNum("hud width A m", hudWidth("A", "m"), 5.5, 0);
+    checkNum("hud width A0 .W m", hudWidth("A0 .W", "m"), 23.25, 0);
+    checkNum("hud width A s", hudWidth("A", "s"), 3.75, 0);
+    checkStr("hud space -7.75", hudSpace(-7.75), "<font:mech:ui>\uF804\uF802\uF801\uF8A3</font>");
+    checkStr("hud space 0", hudSpace(0), "");
+    checkStr("hud font row -3", hudFont("m", -3), "mech:hud/m_n3");
+    hudReset(default.uuid);
+    hudDemo(default.uuid);
+    line bars = global hudSent[default.uuid] as list;
+    checkNum("hud three bars", line bars.len(), 3, 0);
+
     clearMechs();
     line passed = global testPass;
     line failed = global testFail;
     default.sendMessage(s"<gold>MECHTEST DONE %var(passed) passed %var(failed) failed");
+    // The demo HUD stays up 10 seconds for a screenshot.
+    wait(200);
+    hudReset(default.uuid);
 }
 
 /** Join hook: runs the self-test a second after the player enters play
