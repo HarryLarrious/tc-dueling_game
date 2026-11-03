@@ -1,0 +1,417 @@
+// Stage 1 pack spike (MEC-21): chat commands that exercise the resource pack
+// (MEC-16..20) on the plot. Record the results in PLAN.md (Stage 1, item 4);
+// delete with the rest of spike/ (MEC-23).
+
+/** Every entity the pack spike spawned, for @pack clear. */
+declare global packEnts: list[str];
+/** Entities only their owner sees: hidden from everyone else, late joiners too. */
+declare global packPrivate: list[str];
+/** Test part displays that packSwing rotates about their joint. */
+declare global packModels: list[str];
+declare global packSwingId: num;
+
+/** Per-player menu: 1 while open, its seat, panel and cursor displays. */
+declare global "menuOn %uuid": num;
+declare global "menuSeat %uuid": str;
+declare global "menuPanel %uuid": str;
+declare global "menuCursor %uuid": str;
+/** 1 while the server's hover test finds the cursor on the panel. */
+declare global "menuHover %uuid": num;
+/** The player's post-effect marker display (@fx). */
+declare global "fxMark %uuid": str;
+
+/** The newest pack on pack-dist (tools/build_pack.py --publish prints it). */
+function defaultPackUrl(): str {
+    return "https://raw.githubusercontent.com/HarryLarrious/tc-mech_game/pack-dist/mech-pack-33a8e3c9d358.zip";
+}
+
+/** Two uppercase hex digits for n in 0..255. */
+function hex2(n: num): str {
+    line digits = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "A", "B", "C", "D", "E", "F"];
+    line hi = line digits[num.floor(n / 16) + 1] as str;
+    line lo = line digits[n % 16 + 1] as str;
+    return "%var(hi)%var(lo)";
+}
+
+/** Marker color for a UI glyph (PLAN.md, UI and HUD): red = kind, then
+ * green 128 + 4a and blue 128 + 4c. Kinds: 252 HUD, 248 panel, 244 cursor. */
+function uiColor(kind: num, a: num, c: num): str {
+    line r = hex2(kind);
+    line g = hex2(128 + 4 * a);
+    line b = hex2(128 + 4 * c);
+    return "#%var(r)%var(g)%var(b)";
+}
+
+/** One mech:ui glyph in a marker color, as styled text. */
+function uiGlyph(glyph: str, color: str): txt {
+    return miniMessage("<font:mech:ui><%var(color)>%var(glyph)");
+}
+
+/** Parses a MiniMessage string built at run time (colors computed above).
+ * "Full" because the default "Style Only" drops <font>, which leaves the
+ * glyphs in the default font as missing-glyph boxes. Only our own strings
+ * reach this, never player input. */
+function miniMessage(expr: str): txt {
+    return s"%var(expr)".parseExpression(allowed="Full");
+}
+
+/** Remembers an entity for @pack clear. */
+function trackEntity(uuid: str) {
+    global packEnts.append(uuid);
+}
+
+/** Hides an entity from every player but the current one, now and for later joiners. */
+function makePrivate(uuid: str) {
+    global packPrivate.append(uuid);
+    allPlayers.setEntityHidden(uuid, hidden="Enable");
+    default.setEntityHidden(uuid, hidden="Disable");
+}
+
+/** Text display setup the text shader expects for menu glyphs: yaw 0,
+ * pitch 0, fixed billboard, no background, no shadow, never culled. */
+function menuDisplay(uuid: str) {
+    select entitiesByName(uuid);
+    selectedEntity.setRotation(0, 0);
+    selectedEntity.setDisplayBillboard(type="Fixed");
+    selectedEntity.setTextDisplayBackground("#000000", 0);
+    selectedEntity.setTextDisplayTextShadow(textShadow="Disable");
+    selectedEntity.setDisplayCullingSize(0, 0);
+    select reset;
+    trackEntity(uuid);
+    makePrivate(uuid);
+}
+
+// ---------------------------------------------------------------- @pack
+
+/** @pack [url | status | clear]: send the built-in pack (or a one-off url),
+ * report, or remove spike entities. */
+function packCommand(parts: list) {
+    line sub = "";
+    if (parts.len() >= 2) {
+        line sub = parts[2] as str;
+    }
+    if (line sub == "clear") {
+        packClear();
+        return;
+    }
+    if (line sub == "status") {
+        if (default.isUsingResourcePack()) {
+            default.sendMessage(s"<gray>Pack: <green>in use</green>.");
+        } else {
+            default.sendMessage(s"<gray>Pack: <red>not in use</red>. Send it with <yellow>@pack</yellow>.");
+        }
+        return;
+    }
+    line url = defaultPackUrl();
+    if (line sub != "") {
+        line url = line sub;
+    }
+    sendPack(line url);
+}
+
+/** Sends a pack to the player. */
+function sendPack(url: str) {
+    default.sendResourcePack(url);
+    default.sendMessage(s"<gray>Sent the resource pack.");
+}
+
+/** Removes every spike entity and the player's boss bars and menu state. */
+function packClear {
+    menuClose();
+    repeat (line i to global packEnts.len()) {
+        select entitiesByName(global packEnts[line i]);
+        selectedEntity.remove();
+        select reset;
+    }
+    global packEnts = [];
+    global packPrivate = [];
+    global packModels = [];
+    global "menuOn %uuid" = 0;
+    global "fxMark %uuid" = "";
+    default.removeBossBar();
+    default.sendMessage(s"<gray>Pack spike entities and boss bars cleared.");
+}
+
+playerevent resourcePackLoad {
+    hideHand();
+    default.sendMessage(s"<green>Pack loaded.");
+}
+
+/** Empties the inventory and holds one blank item (model mech:blank) in
+ * hotbar slot 1: the hotbar shows nothing, and with an item in hand the
+ * first-person arm is not drawn. Its name is a 1-pixel space glyph, so the
+ * item name popup above the hotbar is empty too. */
+function hideHand {
+    line blank = item("paper").setModel("mech:blank").setName(miniMessage("<font:mech:ui>\uF821")).setTooltipVisible(tooltip="Disable");
+    default.clearInventory(clearMode="Entire inventory");
+    default.setHotbarItems(line blank);
+    default.setHotbarSlot(1);
+}
+
+playerevent resourcePackDecline {
+    default.sendMessage(s"<red>Pack declined.</red> <gray>The game needs it for models and UI; <yellow>@pack</yellow> to try again.");
+}
+
+/** On join: send the pack and hide every private spike entity from the new player. */
+function packJoin {
+    if (global packPrivate.len() > 0) {
+        default.setEntityHidden(global packPrivate, hidden="Enable");
+    }
+    sendPack(defaultPackUrl());
+}
+
+// ---------------------------------------------------------------- @hud
+
+/** @hud [anchor 0-8] [palette] | grid | off: a marked glyph as boss bar 1's title. */
+function hudCommand(parts: list) {
+    line sub = "";
+    if (parts.len() >= 2) {
+        line sub = parts[2] as str;
+    }
+    default.removeBossBar();
+    if (line sub == "off") {
+        return;
+    }
+    if (line sub == "grid") {
+        // One cursor glyph per anchor. Each is followed by -7 px of space
+        // (its advance), so all nine share one origin and land exactly on
+        // their anchors.
+        line title = "<font:mech:ui>";
+        repeat (line k to 9) {
+            line color = uiColor(252, (line k - 1) * 3, 3);
+            line title = "%var(title)<%var(color)>\uE001\uF804\uF802\uF801";
+        }
+        default.setBossBar(miniMessage(line title), 1, 1);
+        default.sendMessage(s"<gray>HUD grid: a cursor glyph at each of the 9 anchors. Change GUI scale and FOV: they must not move.");
+        return;
+    }
+    line anchor = argNum(parts, 2, 1);
+    line palette = argNum(parts, 3, 3);
+    line color = uiColor(252, line anchor * 3, line palette);
+    default.setBossBar(uiGlyph("", line color), 1, 1);
+    default.sendMessage(s"<gray>HUD panel at anchor <white>%var(anchor)</white>, color <white>%var(color)</white>. Change GUI scale and FOV: it must not move.");
+}
+
+// ---------------------------------------------------------------- @menu
+
+/** @menu: open a seated menu with a panel and the shader cursor; @menu
+ * again or sneaking out of the seat closes it. */
+function menuCommand {
+    if (global "menuOn %uuid" == 1) {
+        menuClose();
+        return;
+    }
+    line here = default.location;
+    game.spawnInteractionEntity(loc(line here.x, line here.y, line here.z), 0.8, 0.6);
+    line seat = lastEntity.uuid;
+    trackEntity(line seat);
+    global "menuSeat %uuid" = line seat;
+    default.rideEntity(line seat);
+    default.setRotation(0, 0);
+    // Let the riding pose settle before reading the eye position.
+    wait(2);
+    line eye = default.eyeLocation;
+    line at = loc(line eye.x, line eye.y, line eye.z, 0, 0);
+
+    game.spawnTextDisplay(line at, uiGlyph("", uiColor(248, 4, 0)));
+    global "menuPanel %uuid" = lastEntity.uuid;
+    menuDisplay(lastEntity.uuid);
+
+    game.spawnTextDisplay(line at, uiGlyph("", uiColor(244, 0, 0)));
+    global "menuCursor %uuid" = lastEntity.uuid;
+    menuDisplay(lastEntity.uuid);
+    // Put the cursor's tip on the look point: the tip sits at canvas
+    // -2.75, -13.75 from the display origin (pack/src/spike_assets.py prints
+    // it), so move +2.75, +13.75 canvas units = 0.06875, -0.34375 blocks.
+    select entitiesByName(global "menuCursor %uuid");
+    selectedEntity.setDisplayTransformationMatrix([
+        1, 0, 0, 0.06875,
+        0, 1, 0, -0.34375,
+        0, 0, 1, 0,
+        0, 0, 0, 1
+    ]);
+    select reset;
+
+    global "menuHover %uuid" = 0;
+    global "menuOn %uuid" = 1;
+    start menuLoop;
+    default.sendMessage(s"<gray>Menu open: move the mouse. The panel turns cyan when the server sees the cursor on it. Sneak or <yellow>@menu</yellow> to close.");
+}
+
+/** Closes the player's menu: removes its displays and seat. */
+function menuClose {
+    if (global "menuOn %uuid" != 1) {
+        return;
+    }
+    global "menuOn %uuid" = 0;
+    select entitiesByName(global "menuPanel %uuid");
+    selectedEntity.remove();
+    select reset;
+    select entitiesByName(global "menuCursor %uuid");
+    selectedEntity.remove();
+    select reset;
+    default.rideEntity();
+    select entitiesByName(global "menuSeat %uuid");
+    selectedEntity.remove();
+    select reset;
+    default.sendActionBar(s"");
+}
+
+/** True when canvas offset (x, y) from the center anchor is on the panel.
+ * The panel's visible art spans x -31..32, y -17.5..13.5 (printed by
+ * pack/src/spike_assets.py). */
+function onPanel(x: num, y: num): num {
+    if (x >= -31 && x <= 32 && y >= -17.5 && y <= 13.5) {
+        return 1;
+    }
+    return 0;
+}
+
+/** Server side of the cursor: same mapping as mech_cursor_point in
+ * mech:ui.glsl, as an offset from the canvas center. */
+process menuLoop {
+    repeat {
+        if (global "menuOn %uuid" != 1) {
+            break;
+        }
+        line view = default.location;
+        line yaw: num = line view.getCoordinate(coord="Yaw");
+        if (line yaw > 180) {
+            line yaw -= 360;
+        }
+        if (line yaw < -180) {
+            line yaw += 360;
+        }
+        line pitch: num = line view.getCoordinate(coord="Pitch");
+        line x = 4 * line yaw;
+        line y = 4 * line pitch;
+        line hover = onPanel(line x, line y);
+        if (line hover != global "menuHover %uuid") {
+            global "menuHover %uuid" = line hover;
+            line palette = 0;
+            if (line hover == 1) {
+                line palette = 3;
+            }
+            select entitiesByName(global "menuPanel %uuid");
+            selectedEntity.setTextDisplayText(uiGlyph("", uiColor(248, 4, line palette)));
+            select reset;
+        }
+        line xs = num.floor(line x * 10) / 10;
+        line ys = num.floor(line y * 10) / 10;
+        default.sendActionBar(s"<gray>cursor <white>%var(xs), %var(ys)</white> hover <white>%var(hover)</white>");
+        wait;
+    }
+}
+
+// ---------------------------------------------------------------- @model @beep
+
+/** @model [party 1-5]: the test part 3 blocks ahead, tinted, swinging about its joint. */
+function modelCommand(parts: list) {
+    line colors = [0x4FC3F7, 0xFF7043, 0x9CCC65, 0xFFD54F, 0xBA68C8];
+    line party = num.clamp(argNum(parts, 2, 1), 1, 5);
+    line tint = line colors[line party] as num;
+    line eye = default.eyeLocation;
+    line f = forwardVec();
+    line at = loc(line eye.x + line f.x * 3, line eye.y - 0.5, line eye.z + line f.z * 3);
+    line part = item("stone").setModel("mech:test_part").setModelDataNumbers(line tint, type="Colors");
+    game.spawnItemDisplay(line at, line part);
+    trackEntity(lastEntity.uuid);
+    global packModels.append(lastEntity.uuid);
+    start packSwing;
+    default.sendMessage(s"<gray>Test part, party <white>%var(party)</white>. The dark joint must stay still while the arm swings.");
+}
+
+/** Swings every test part about its joint (the display origin) until @pack clear. */
+process packSwing {
+    global packSwingId += 1;
+    line myId = global packSwingId;
+    line t = 0;
+    repeat {
+        if (global packSwingId != line myId || global packModels.len() == 0) {
+            break;
+        }
+        // Roll about the display's z axis, scale 2.
+        line a = num.sinr(line t * 0.15) * 0.8;
+        line c = num.cosr(line a) * 2;
+        line s = num.sinr(line a) * 2;
+        repeat (line i to global packModels.len()) {
+            select entitiesByName(global packModels[line i]);
+            selectedEntity.setDisplayTransformationMatrix([
+                line c, 0 - line s, 0, 0,
+                line s, line c, 0, 0,
+                0, 0, 2, 0,
+                0, 0, 0, 1
+            ]);
+            selectedEntity.setDisplayInterpolation(2, 0);
+            select reset;
+        }
+        line t += 2;
+        wait(2);
+    }
+}
+
+/** @beep: the pack's custom sound. */
+function beepCommand {
+    default.playSound(csnd("mech:test.beep"));
+    default.sendMessage(s"<gray>Played <white>mech:test.beep</white>.");
+}
+
+// ---------------------------------------------------------------- @fx @outline
+
+/** Glow color from a chat argument: "ff8000" or "#ff8000". */
+function glowArg(parts: list, index: num, fallback: str): str {
+    if (parts.len() < index) {
+        return fallback;
+    }
+    line raw = (parts[index] as str).replace("#", "");
+    return "#%var(raw)";
+}
+
+/** @fx <hex> | off: the player's glowing post-effect marker, glow color =
+ * effect code (encoding set by MEC-20). Rides the player, only they see it. */
+function fxCommand(parts: list) {
+    if (global "fxMark %uuid" != "") {
+        select entitiesByName(global "fxMark %uuid");
+        selectedEntity.remove();
+        select reset;
+        global "fxMark %uuid" = "";
+    }
+    if (parts.len() >= 2 && parts[2] as str == "off") {
+        default.sendMessage(s"<gray>Effect marker removed.");
+        return;
+    }
+    line color = glowArg(parts, 2, "#FF0000");
+    line eye = default.eyeLocation;
+    game.spawnItemDisplay(loc(line eye.x, line eye.y, line eye.z), item("white_concrete"));
+    line mark = lastEntity.uuid;
+    global "fxMark %uuid" = line mark;
+    select entitiesByName(line mark);
+    selectedEntity.setDisplayScale(0.05, 0.05, 0.05);
+    selectedEntity.setDisplayCullingSize(0, 0);
+    selectedEntity.setGlowing(glowing="Enable");
+    selectedEntity.setDisplayGlowColor(line color);
+    selectedEntity.ride(default.uuid);
+    select reset;
+    trackEntity(line mark);
+    makePrivate(line mark);
+    default.sendMessage(s"<gray>Effect marker glow <white>%var(color)</white>.");
+}
+
+/** @outline [hex hex hex]: three glowing cubes ahead, one per color. */
+function outlineCommand(parts: list) {
+    line colors = [glowArg(parts, 2, "#FF4040"), glowArg(parts, 3, "#40FF40"), glowArg(parts, 4, "#4040FF")];
+    line eye = default.eyeLocation;
+    line f = forwardVec();
+    line side = vec(0 - line f.z, 0, line f.x);
+    repeat (line i to 3) {
+        line p = vec(line eye.x, line eye.y - 1, line eye.z) + line f * 5 + line side * ((line i - 2) * 1.5);
+        game.spawnItemDisplay(loc(line p.x, line p.y, line p.z), item("iron_block"));
+        line cube = lastEntity.uuid;
+        select entitiesByName(line cube);
+        selectedEntity.setGlowing(glowing="Enable");
+        selectedEntity.setDisplayGlowColor(line colors[line i] as str);
+        select reset;
+        trackEntity(line cube);
+    }
+    default.sendMessage(s"<gray>Three glowing cubes. With the outline filter (MEC-20) only your party's color shows.");
+}

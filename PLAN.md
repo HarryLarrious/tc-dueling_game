@@ -57,6 +57,10 @@ pattern, the `@cpu` gauge.
   part upgrades. Cosmetic credits are only bought, through DF plot products.
 - **UI ignores FOV and GUI scale and takes mouse input.** A core shader in the
   pack draws it on a fixed virtual canvas (see UI and HUD).
+- **High-resolution look, not Minecraft.** UI art, fonts and model textures
+  are high resolution and anti-aliased, sampled smooth by our shaders; no
+  pixel art and nothing that reads as a Minecraft game (see UI and HUD, Art
+  quality).
 - **The client does the visual work.** Anything purely visual runs on the
   client through the resource pack, core shaders and post effects (see
   Client-side tech). The server computes gameplay state and sends only
@@ -361,6 +365,25 @@ translucent panels and a class cockpit frame (cockpit reference).
 **How it is drawn**
 
 - All UI art is font glyphs (PNG bitmaps) and models in the pack.
+- **Art quality** (owner, 2026-11-02: "high resolution and high quality,
+  something that doesn't look like a Minecraft game"):
+  - Glyph art is drawn anti-aliased (rendered 4× and downsampled with
+    premultiplied alpha) at about 4–8 texels per canvas unit: at 1440p one
+    canvas unit is 4 screen pixels, at 4K 6.
+  - A glyph image must be under 255 px a side: the font atlas pages are
+    256×256 with 1 px spacing (`FontTexture`), and a glyph that does not fit
+    becomes the missing-glyph box. Larger art is split into several glyphs
+    laid side by side with spacing glyphs.
+  - Every glyph keeps a 2 px transparent margin, so filtered sampling never
+    reaches a neighbouring glyph in the atlas.
+  - The font atlas sampler is `NEAREST`, so `core/text.fsh` samples marked
+    glyphs itself: bilinear when magnified, a 4-tap footprint average when
+    shrunk, on premultiplied colors (no dark fringes). Unmarked text samples
+    as vanilla.
+  - Still Minecraft-looking, each with a ticket: the default font for UI text
+    (needs a high-resolution TTF font), and 16×16 nearest-filtered model
+    textures (high-resolution textures plus filtered sampling and better
+    lighting in `core/item`, MEC-19).
 - A **core shader** recognizes marked UI elements and places them on one
   *virtual canvas* scaled to the window height. It cancels the GUI scale and
   uses its own fixed projection instead of the player's FOV, so size and
@@ -380,6 +403,10 @@ translucent panels and a class cockpit frame (cockpit reference).
   `color × 0.25`, so a marked glyph's shadow decodes too and the shader hides
   it. Side effect: on our plot, GUI text colored red ≥ 252 with green and
   blue in 128–251 loses its shadow; avoid those colors for normal text.
+- **Building glyph text in DF**: text built at run time (computed marker
+  colors) goes through "Parse MiniMessage Expression" with Allowed Tags
+  **Full**; the default "Style Only" drops `<font:mech:ui>` and the glyphs
+  show as missing-glyph boxes.
 - **HUD glyphs**: send the glyph as a boss bar's title. Vanilla centers bar
   `n`'s title on GUI (width/2, 3 + 19n); the shader keeps each glyph's offset
   from that point and moves the point to the anchor. The string's center
@@ -391,7 +418,8 @@ translucent panels and a class cockpit frame (cockpit reference).
   no shadow, hidden from everyone else. The shader reads each glyph's offset
   from the display origin (40 canvas units per block, display scale 1) and
   adds the anchor. A display's translation moves it on the canvas; its z
-  translation orders overlapping panels (smaller z is in front, −0.04 to 1).
+  translation orders overlapping panels (smaller z is in front, −0.03 to 1);
+  the cursor is always drawn in front of every panel.
   Marked glyphs further than 12 blocks from the camera are hidden, so a
   missed `setEntityHidden` never shows another player's menu.
 - **Cursor mapping** (shader and server must match): with yaw normalized to
@@ -416,7 +444,18 @@ translucent panels and a class cockpit frame (cockpit reference).
   once. The server applies the same mapping to the player's yaw and pitch for
   hover and clicks, and `setRotation` holds the camera at the canvas edges.
 - The pack hides vanilla HUD sprites (crosshair, hotbar, hearts, food, XP,
-  boss bar bars) so only our HUD shows.
+  boss bar bars) so only our HUD shows. Done so far: boss bars, the
+  crosshair (combat draws its own) and the hotbar frame, selection and
+  offhand slots.
+- **No hand, no hotbar items**: the player holds one item with the empty
+  model `mech:blank` (`"type": "minecraft:empty"`) in slot 1 and nothing
+  else. With an item in the main hand vanilla does not draw the
+  first-person arm, and the blank item draws nothing in hand or hotbar. Its
+  name is a 1-pixel space glyph so the item-name popup stays empty.
+- **Spacing glyphs** in `mech:ui`: U+F801/F802/F804/F808/F810/F820/F840 move
+  −1/−2/−4/−8/−16/−32/−64 px, U+F821/F822/F824/F828/F830/F860/F880 move
+  +1…+64 px. Following a glyph with minus its advance gives several glyphs
+  one origin.
 - Text entry (party invite by name, loadout names) uses DF dialogs.
 - If your own cockpit shell blocks your first-person view, `setEntityHidden`
   hides it from the pilot only.
@@ -598,6 +637,35 @@ the marker carries the choice.
    `light_emission` strip on its south face), font `mech:ui` (U+E000 panel
    64×32, U+E001 cursor 8×8 with its tip at the top-left), sound
    `mech:test.beep`, and transparent `boss_bar` sprites.
+
+   Results on Plot 206003, 2026-11-02 (owner: "all works"), after the
+   fixes found on the way: glyph MiniMessage needs Allowed Tags Full; the
+   cursor needed its own depth layer; hotbar, hand and crosshair hidden;
+   UI art redone high resolution with filtered sampling.
+
+   Test commands (MEC-21, `spike/pack.tc`): `@pack [url|status|clear]`,
+   `@hud [anchor] [palette] | grid | off`, `@menu`, `@model [party]`,
+   `@beep`, `@fx <hex>|off`, `@outline [hex hex hex]`. Results (fill in on
+   the plot; ✅ pass, ❌ fail + note):
+
+   | Check | Command | Result |
+   | --- | --- | --- |
+   | Pack downloads and loads (`resourcePackLoad` fires) | `@pack` | ✅ also sent on join |
+   | Test part shows, tint follows the party color | `@model 1`…`5` | ✅ |
+   | Joint stays still while the arm swings | `@model` | ✅ |
+   | `light_emission` strip bright in the dark | `@model` at night | — |
+   | Custom sound plays | `@beep` | ✅ |
+   | Boss bar shows only its title (sprites hidden, shadow hidden) | `@hud` | ✅ |
+   | HUD glyphs keep their screen spot at GUI scale 1–4 | `@hud grid` | ✅ |
+   | … and at FOV 30–110 | `@hud grid` | ✅ |
+   | Menu panel locked while the camera turns | `@menu` | ✅ |
+   | Cursor follows the mouse with no lag | `@menu` | ✅ drawn above the panel |
+   | Server hover matches the visible cursor (panel turns cyan) | `@menu` | ✅ |
+   | Menu hidden from a second player | `@menu` + 2nd player | — |
+   | All of the above with improved transparency on | — | — |
+   | Emissive pixel and game-time animation | needs MEC-19 | — |
+   | Marker glow drives zoom/shake, HUD unaffected | `@fx`, needs MEC-20 | — |
+   | Only the party color's outlines show | `@outline`, needs MEC-20 | — |
 5. **Controls spike**: on an interaction-entity seat, confirm every row of the
    controls table: cancelled `dismount` keeps the pilot seated and shift is
    still readable; space while riding; holding right click with the control
@@ -749,3 +817,6 @@ the marker carries the choice.
 8. Do pilots ever leave the mech mid-match, Titanfall-style? [no]
 9. Who makes the final models and sounds? [placeholder boxes and stock sounds
    first; final art in Blockbench]
+10. Replace `minecraft:default` (all text on the plot: chat, signs, DF
+    messages) with the UI's TTF font, or only use it for marked UI text?
+    [only UI text; chat stays readable and familiar]
