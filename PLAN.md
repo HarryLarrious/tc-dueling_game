@@ -380,10 +380,13 @@ translucent panels and a class cockpit frame (cockpit reference).
     glyphs itself: bilinear when magnified, a 4-tap footprint average when
     shrunk, on premultiplied colors (no dark fringes). Unmarked text samples
     as vanilla.
-  - Still Minecraft-looking, each with a ticket: the default font for UI text
-    (needs a high-resolution TTF font), and 16×16 nearest-filtered model
-    textures (high-resolution textures plus filtered sampling and better
-    lighting in `core/item`, MEC-19).
+  - Mech parts (MEC-19): textures at 16 texels per model unit (256×256 for
+    a 16-unit part), sampled the same filtered way by `core/item.fsh`, and
+    lit per pixel: sky/ground ambient, a warm wrapped key light, a small
+    specular highlight and a cool rim, still multiplied by the lightmap. GUI
+    items (orthographic projection) stay vanilla.
+  - Still Minecraft-looking, with a ticket: the default font for UI text
+    (needs a high-resolution TTF font, MEC-97).
 - A **core shader** recognizes marked UI elements and places them on one
   *virtual canvas* scaled to the window height. It cancels the GUI scale and
   uses its own fixed projection instead of the player's FOV, so size and
@@ -473,7 +476,7 @@ only for gameplay.
 | UI placement, cursor | Core shader: `text` | See UI and HUD |
 | Gunfire, railgun charge, minigun spin-up, footsteps, servos, alarms | Pack: `sounds.json` + OGG files | DF custom sounds |
 | Cockpit screens, hologram panels, muzzle flashes, dome field | Pack: animated textures (`.mcmeta`) | No server cost |
-| Lights, visors and tracers that glow | Model `light_emission` or core shader: `item` | Static glow: the vanilla element field `light_emission: 15`, no shader. Animated glow: pixels with the reserved alpha (250) render full bright in the shader |
+| Lights, visors and tracers that glow | Model `light_emission` or core shader: `item` | Static glow: the vanilla element field `light_emission: 15`, no shader. Shader glow: texture alpha 250 renders full bright and opaque, 251 the same plus a 1 Hz pulse on `GameTime` |
 | Minigun spin, radar sweep, light pulse | Core shader: `item` | Marked vertices animated by game time |
 | Electrostatic Dome bubble | Core shader: `item` | One billboarded display drawn as a sphere with a bright edge |
 | 3D menu previews | Core shader: `item` | Screen-locked like the menu panels |
@@ -516,7 +519,10 @@ client gives us (decompiled source and shaders in the minecraft-source MCP):
   from the outline image so it doesn't show.
 - **Item tint and light.** `core/item` multiplies the texture by the vertex
   color (custom model data tint) and the lightmap; skipping the lightmap for
-  marked pixels makes them emissive.
+  marked pixels makes them emissive. Normals and positions arrive in
+  camera-relative world axes, so our world lighting is fixed in the world.
+  World items are told apart from GUI items by the projection
+  (`ProjMat[3][3]` is 0 for perspective, 1 for orthographic).
 - **Improved transparency.** With that video option on, translucent text and
   items use order-independent-transparency variants (`OIT_*` defines); test
   the shaders with the option on and off.
@@ -590,10 +596,15 @@ the marker carries the choice.
   damaged variants and skins select on custom model data strings, party color
   tints from custom model data colors.
 - **Glow.** An element with `"light_emission": 15` (0–15) renders at full
-  block light with no shader. Pixels for the item shader (animated glow) use
-  alpha 250. Any alpha other than 0 or 255 inside a face's UV area sends that
+  block light with no shader. Pixels for the item shader use alpha 250 (full
+  bright) or 251 (full bright, pulsing). Any alpha other than 0 or 255 inside a face's UV area sends that
   whole face to the translucent item pipeline (`FaceBakery`), so marked pixels
   go on their own small faces and the rest of the part stays cutout.
+- **Textures** are high resolution (16 texels per model unit) and sampled
+  filtered, so keep UV islands at least 2 texels apart and 2 texels from the
+  texture edge, with their edge colors extended into that gap: a filtered
+  sample at a face edge then never picks up a neighbouring island or the
+  next sprite in the atlas.
 - Item model definitions live in `assets/mech/items/<part>.json`
   (`setModel(item, "mech:<part>")`); party color is a
   `minecraft:custom_model_data` tint (index 0) on faces with `tintindex: 0`.
