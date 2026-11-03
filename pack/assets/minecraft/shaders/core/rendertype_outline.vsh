@@ -22,10 +22,14 @@ void main() {
     gl_Position = ProjMat * ModelViewMat * vec4(Position, 1.0);
 
     if (mech_is_marker(Color.rgb)) {
-        // Every quad of the marker model becomes the same small square;
-        // its four vertices arrive in order, so the index picks the corner.
+        // Every quad of the marker model becomes the same small square; its
+        // four vertices arrive in order, so the index picks the corner. The
+        // shared vertex buffer may start a draw at any vertex, which only
+        // rotates the corners and keeps the winding. Item outlines are drawn
+        // with back-face culling (OUTLINE_CULL): counter-clockwise faces
+        // front (clockwise squares were always culled in testing).
         int corner = gl_VertexIndex % 4;
-        vec2 c = vec2(corner == 2 || corner == 3 ? 1.0 : 0.0, corner == 1 || corner == 2 ? 1.0 : 0.0);
+        vec2 c = vec2(corner == 1 || corner == 2 ? 1.0 : 0.0, corner == 2 || corner == 3 ? 1.0 : 0.0);
         vec2 ndc = -1.0 + c * (2.0 * float(MECH_MARKER_SIZE) / ScreenSize);
         gl_Position = vec4(ndc, 0.0, 1.0);
     }

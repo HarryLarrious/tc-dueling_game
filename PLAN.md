@@ -560,7 +560,19 @@ post effect whenever a glowing entity is on screen, and the pack replaces it:
   `fx`), blit `fx` → `minecraft:main`, `mech:post/outline_filter` (drops the
   marker and other parties' outlines), then vanilla's sobel, two blurs and
   blit. The marker display is an item display at scale 0.01 riding the
-  player, culling size 0, hidden from everyone else.
+  player, hidden from the other players only (hiding it from its owner too
+  and showing it again re-sends it and loses it).
+- **Marker pitfalls found in game** (MEC-20):
+  - Item outlines draw with back-face culling (`OUTLINE_CULL`). The marker
+    square is wound counter-clockwise; clockwise was always culled.
+  - Draws share one vertex buffer and may start at any vertex, so
+    `gl_VertexIndex % 4` is only a corner index up to rotation. A fixed
+    winding survives that; anything that changes per quad (e.g. alternating
+    by `gl_VertexIndex / 4`) breaks quads apart.
+  - Give the marker a real culling box (`setDisplayCullingSize(4, 3)`)
+    instead of 0: vanilla inflates it by 0.5 so it contains the camera, and
+    it stays visible to culling mods (Sodium, EntityCulling) in every view
+    direction.
 
 | Effect | When |
 | --- | --- |
@@ -698,8 +710,8 @@ the marker carries the choice.
    | All of the above with improved transparency on | — | item glow ✅; UI not checked yet |
    | Emissive pixel and game-time animation | `@model` (MEC-19) | ✅ 250 glows, 251 pulses, also with improved transparency |
    | High-res part texture smooth, world lighting on parts | `@model` (MEC-19) | ✅ |
-   | Marker glow drives zoom/shake, HUD unaffected | `@fx zoom+shake 60` | — |
-   | Only the party color's outlines show | `@outline`, `@fx zoom 0 2` | — |
+   | Marker glow drives zoom/shake, HUD unaffected | `@fx zoom+shake 60` | ✅ zoom, shake, tint, gray, any view direction |
+   | Only the party color's outlines show | `@outline`, `@fx zoom 0 2` | ✅ |
 5. **Controls spike**: on an interaction-entity seat, confirm every row of the
    controls table: cancelled `dismount` keeps the pilot seated and shift is
    still readable; space while riding; holding right click with the control

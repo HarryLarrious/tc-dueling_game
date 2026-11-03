@@ -22,7 +22,7 @@ declare global "fxMark %uuid": str;
 
 /** The newest pack on pack-dist (tools/build_pack.py --publish prints it). */
 function defaultPackUrl(): str {
-    return "https://raw.githubusercontent.com/HarryLarrious/tc-mech_game/pack-dist/mech-pack-8407b6010268.zip";
+    return "https://raw.githubusercontent.com/HarryLarrious/tc-mech_game/pack-dist/mech-pack-f6db8eaad3a0.zip";
 }
 
 /** Two uppercase hex digits for n in 0..255. */
@@ -63,8 +63,12 @@ function trackEntity(uuid: str) {
 /** Hides an entity from every player but the current one, now and for later joiners. */
 function makePrivate(uuid: str) {
     global packPrivate.append(uuid);
-    allPlayers.setEntityHidden(uuid, hidden="Enable");
-    default.setEntityHidden(uuid, hidden="Disable");
+    // Hide it only from the others: hiding it from the owner too and then
+    // showing it again re-sends the entity and can drop riding links.
+    line owner = default.uuid;
+    select !playersByName(line owner);
+    selected.setEntityHidden(uuid, hidden="Enable");
+    select reset;
 }
 
 /** Text display setup the text shader expects for menu glyphs: yaw 0,
@@ -424,7 +428,11 @@ function fxCommand(parts: list) {
     select entitiesByName(line mark);
     // Tiny in the world; the outline shader draws it at a screen corner.
     selectedEntity.setDisplayScale(0.01, 0.01, 0.01);
-    selectedEntity.setDisplayCullingSize(0, 0);
+    // A real culling box around the head rather than size 0: culling mods
+    // (Sodium, EntityCulling) drop a zero-size box above the camera when you
+    // look level or down. Vanilla inflates this box by 0.5, so it contains
+    // the camera and stays visible from every direction.
+    selectedEntity.setDisplayCullingSize(4, 3);
     selectedEntity.setGlowing(glowing="Enable");
     selectedEntity.setDisplayGlowColor(line color);
     selectedEntity.ride(default.uuid);
