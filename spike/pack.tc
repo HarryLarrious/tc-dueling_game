@@ -195,11 +195,10 @@ function hudCommand(parts: list) {
 // ---------------------------------------------------------------- @menu
 
 /** @menu: open a menu with a panel and the shader cursor; @menu again or
- * sneaking closes it. The player spectates an invisible armor stand that is
- * hidden from everyone, the player included: the client never has the
- * stand, so its camera stays on the player and the mouse still turns it
- * (yaw and pitch keep reaching the server), while the server holds the
- * player at the stand. Spectator mode also hides the crosshair, hand and
+ * sneaking closes it. The player spectates an invisible armor stand, which
+ * is then hidden from everyone, the player included: the camera stays on
+ * the player and the mouse still turns it (yaw and pitch keep reaching the
+ * server), while the server holds the player at the stand. Spectator mode also hides the crosshair, hand and
  * hotbar. */
 function menuCommand {
     if (global "menuOn %uuid" == 1) {
@@ -214,11 +213,11 @@ function menuCommand {
     select reset;
     trackEntity(line anchor);
     global "menuSeat %uuid" = line anchor;
-    // Hide it before spectating, so the client never receives it.
-    global packPrivate.append(line anchor);
-    allPlayers.setEntityHidden(line anchor, hidden="Enable");
+    // Spectate first, then hide it from everyone, the player included.
     default.setToSpectatorMode();
     default.spectateTarget(line anchor);
+    global packPrivate.append(line anchor);
+    allPlayers.setEntityHidden(line anchor, hidden="Enable");
     default.setRotation(0, 0);
     // Let the position settle before reading the eye position.
     wait(2);

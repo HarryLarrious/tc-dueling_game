@@ -433,11 +433,11 @@ translucent panels and a class cockpit frame (cockpit reference).
   transient ones. These are per player by nature and are resent only when a
   value changes (cooldowns quantized).
 - **Menus in a menu room**: the player is put in spectator mode spectating
-  an invisible, gravity-free armor stand that is hidden from everyone, the
-  player included (`setEntityHidden` before `spectateTarget`). The client
-  never has the stand, so the camera stays on the player and the mouse still
-  turns it, and yaw and pitch keep reaching the server; the server holds the
-  player at the stand. Spectator mode also hides the crosshair, hand and
+  an invisible, gravity-free armor stand, which is then hidden from
+  everyone, the player included (`spectateTarget` first, then
+  `setEntityHidden`). With the stand hidden the camera stays on the player
+  and the mouse still turns it, and yaw and pitch keep reaching the server;
+  the server holds the player at the stand. Spectator mode also hides the crosshair, hand and
   hotbar. Sneaking or closing the menu stops spectating and restores the
   game mode. Panels, a backdrop
   and 3D previews (party mechs, customizer mech, shop viewer) are text and
