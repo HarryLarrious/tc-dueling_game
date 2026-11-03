@@ -10,7 +10,7 @@ declare global packPrivate: list[str];
 declare global packModels: list[str];
 declare global packSwingId: num;
 
-/** Per-player menu: 1 while open, its seat, panel and cursor displays. */
+/** Per-player menu: 1 while open, its camera anchor (armor stand), panel and cursor displays. */
 declare global "menuOn %uuid": num;
 declare global "menuSeat %uuid": str;
 declare global "menuPanel %uuid": str;
@@ -117,6 +117,7 @@ function sendPack(url: str) {
 
 /** Removes every spike entity and the player's boss bars and menu state. */
 function packClear {
+    menuClose();
     repeat (line i to global packEnts.len()) {
         select entitiesByName(global packEnts[line i]);
         selectedEntity.remove();
@@ -193,20 +194,33 @@ function hudCommand(parts: list) {
 
 // ---------------------------------------------------------------- @menu
 
-/** @menu: open a seated menu with a panel and the shader cursor; @menu again closes it. */
+/** @menu: open a menu with a panel and the shader cursor; @menu again or
+ * sneaking closes it. The player spectates an invisible armor stand that is
+ * hidden from everyone, the player included: the client never has the
+ * stand, so its camera stays on the player and the mouse still turns it
+ * (yaw and pitch keep reaching the server), while the server holds the
+ * player at the stand. Spectator mode also hides the crosshair, hand and
+ * hotbar. */
 function menuCommand {
     if (global "menuOn %uuid" == 1) {
         menuClose();
         return;
     }
     line here = default.location;
-    game.spawnInteractionEntity(loc(line here.x, line here.y, line here.z), 0.8, 0.6);
-    line seat = lastEntity.uuid;
-    trackEntity(line seat);
-    global "menuSeat %uuid" = line seat;
-    default.rideEntity(line seat);
+    game.spawnArmorStand(loc(line here.x, line here.y, line here.z, 0, 0), visibility="Invisible (No hitbox)");
+    line anchor = lastEntity.uuid;
+    select entitiesByName(line anchor);
+    selectedEntity.setGravity(gravity="Disable");
+    select reset;
+    trackEntity(line anchor);
+    global "menuSeat %uuid" = line anchor;
+    // Hide it before spectating, so the client never receives it.
+    global packPrivate.append(line anchor);
+    allPlayers.setEntityHidden(line anchor, hidden="Enable");
+    default.setToSpectatorMode();
+    default.spectateTarget(line anchor);
     default.setRotation(0, 0);
-    // Let the riding pose settle before reading the eye position.
+    // Let the position settle before reading the eye position.
     wait(2);
     line eye = default.eyeLocation;
     line at = loc(line eye.x, line eye.y, line eye.z, 0, 0);
@@ -236,7 +250,8 @@ function menuCommand {
     default.sendMessage(s"<gray>Menu open: move the mouse. The panel turns cyan when the server sees the cursor on it. Sneak or <yellow>@menu</yellow> to close.");
 }
 
-/** Closes the player's menu: removes its displays and seat. */
+/** Closes the player's menu: stops spectating, back to creative, removes
+ * its displays and camera anchor. */
 function menuClose {
     if (global "menuOn %uuid" != 1) {
         return;
@@ -248,7 +263,8 @@ function menuClose {
     select entitiesByName(global "menuCursor %uuid");
     selectedEntity.remove();
     select reset;
-    default.rideEntity();
+    default.spectateTarget();
+    default.setToCreativeMode();
     select entitiesByName(global "menuSeat %uuid");
     selectedEntity.remove();
     select reset;
@@ -270,6 +286,10 @@ function onPanel(x: num, y: num): num {
 process menuLoop {
     repeat {
         if (global "menuOn %uuid" != 1) {
+            break;
+        }
+        if (default.isSneaking()) {
+            menuClose();
             break;
         }
         line view = default.location;
