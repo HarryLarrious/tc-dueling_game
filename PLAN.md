@@ -432,14 +432,7 @@ translucent panels and a class cockpit frame (cockpit reference).
   list, damage schema, weapon panel, minimap), title and action bar for
   transient ones. These are per player by nature and are resent only when a
   value changes (cooldowns quantized).
-- **Menus in a menu room**: the player is put in spectator mode spectating
-  an invisible, gravity-free armor stand, which is then hidden from
-  everyone, the player included (`spectateTarget` first, then
-  `setEntityHidden`). With the stand hidden the camera stays on the player
-  and the mouse still turns it, and yaw and pitch keep reaching the server;
-  the server holds the player at the stand. Spectator mode also hides the crosshair, hand and
-  hotbar. Sneaking or closing the menu stops spectating and restores the
-  game mode. Panels, a backdrop
+- **Menus in a menu room**: the player rides a fixed seat. Panels, a backdrop
   and 3D previews (party mechs, customizer mech, shop viewer) are text and
   item displays in front of the seat. The shader locks them to the screen
   (ignoring camera rotation) and projects them with the fixed projection.
@@ -451,8 +444,9 @@ translucent panels and a class cockpit frame (cockpit reference).
   once. The server applies the same mapping to the player's yaw and pitch for
   hover and clicks, and `setRotation` holds the camera at the canvas edges.
 - The pack hides vanilla HUD sprites (crosshair, hotbar, hearts, food, XP,
-  boss bar bars) so only our HUD shows. Done so far: boss bars and the
-  hotbar frame, selection and offhand slots.
+  boss bar bars) so only our HUD shows. Done so far: boss bars, the
+  crosshair (combat draws its own) and the hotbar frame, selection and
+  offhand slots.
 - **No hand, no hotbar items**: the player holds one item with the empty
   model `mech:blank` (`"type": "minecraft:empty"`) in slot 1 and nothing
   else. With an item in the main hand vanilla does not draw the

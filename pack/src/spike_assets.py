@@ -8,7 +8,7 @@ Needs Pillow and ffmpeg (with libvorbis). Writes:
   mech:font/panel, cursor       glyph bitmaps for font mech:ui
   mech:test/beep.ogg            sound event mech:test.beep
   minecraft boss_bar sprites    all transparent, so boss bars show only their text
-  minecraft hud hotbar sprites  all transparent, so the hotbar frame never shows
+  minecraft hud sprites         hotbar and crosshair, all transparent
 The JSON files (item definition, model, font, sounds.json) are written by hand
 and live next to these in pack/assets/.
 """
@@ -160,8 +160,13 @@ def glyphs() -> None:
           f"x {-tip_x / 40:.5f}, y {tip_y / 40:.5f} blocks")
 
 
-# Vanilla hotbar sprites and their sizes (gui/sprites/hud).
+# Vanilla HUD sprites made transparent, with their sizes (gui/sprites/hud):
+# the hotbar, and the crosshair (combat draws its own).
 HOTBAR_SPRITES = {
+    "crosshair": (15, 15),
+    "crosshair_attack_indicator_background": (16, 4),
+    "crosshair_attack_indicator_full": (16, 16),
+    "crosshair_attack_indicator_progress": (16, 4),
     "hotbar": (182, 22),
     "hotbar_selection": (24, 23),
     "hotbar_offhand_left": (29, 24),
