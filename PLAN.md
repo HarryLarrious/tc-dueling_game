@@ -364,8 +364,42 @@ translucent panels and a class cockpit frame (cockpit reference).
 - A **core shader** recognizes marked UI elements and places them on one
   *virtual canvas* scaled to the window height. It cancels the GUI scale and
   uses its own fixed projection instead of the player's FOV, so size and
-  position never change with either setting. The marker (reserved color bits
-  or a dedicated font) is picked in the UI spike.
+  position never change with either setting. The canvas is 360 units tall and
+  as wide as the window's aspect (640 at 16:9); one unit is one font pixel.
+- **Marker: the text color** (`core/text.vsh` + `mech:ui.glsl`, MEC-18):
+
+  | Channel | Value |
+  | --- | --- |
+  | red | kind: `252` HUD glyph in a boss bar title, `248` screen-locked panel, `244` cursor |
+  | green | `128 + 4·a`; HUD: `a = anchor·3 + bar slot` (slot 0–2); panel: `a = anchor`; cursor: `a = 0` |
+  | blue | `128 + 4·c`; `c` = palette index (0 white, 1 grey, 2 dark grey, 3 cyan, 4 amber, 5 red, 6 green) |
+
+  `a` and `c` are 0–30. Anchors 0–8 run in reading order (0 top-left,
+  4 center, 8 bottom-right). The glyph is drawn in its palette color, not the
+  marker color, at full brightness with no fog. Vanilla's text shadow is
+  `color × 0.25`, so a marked glyph's shadow decodes too and the shader hides
+  it. Side effect: on our plot, GUI text colored red ≥ 252 with green and
+  blue in 128–251 loses its shadow; avoid those colors for normal text.
+- **HUD glyphs**: send the glyph as a boss bar's title. Vanilla centers bar
+  `n`'s title on GUI (width/2, 3 + 19n); the shader keeps each glyph's offset
+  from that point and moves the point to the anchor. The string's center
+  lands on the anchor; shift it with space glyphs. Only bar slots 0–2 can be
+  addressed, and at high GUI scale vanilla stops drawing bars below a third
+  of the screen height.
+- **Menu displays** (panels and the cursor) are text displays placed exactly
+  at the player's eye, yaw 0, pitch 0, billboard fixed, background alpha 0,
+  no shadow, hidden from everyone else. The shader reads each glyph's offset
+  from the display origin (40 canvas units per block, display scale 1) and
+  adds the anchor. A display's translation moves it on the canvas; its z
+  translation orders overlapping panels (smaller z is in front, −0.04 to 1).
+  Marked glyphs further than 12 blocks from the camera are hidden, so a
+  missed `setEntityHidden` never shows another player's menu.
+- **Cursor mapping** (shader and server must match): with yaw normalized to
+  −180..180 (0 looks +Z),
+  `cursor = (W/2 + 4·yaw, 180 + 4·pitch)` in canvas units, clamped to the
+  canvas. The menu seat faces yaw 0. Hover tests on the server use offsets
+  from the canvas center (`4·yaw`, `4·pitch`), which do not depend on the
+  window's aspect, so clickable panels use the center anchor (4).
 - **Combat HUD on the GUI layer**: boss bars for persistent panels (party
   list, damage schema, weapon panel, minimap), title and action bar for
   transient ones. These are per player by nature and are resent only when a
