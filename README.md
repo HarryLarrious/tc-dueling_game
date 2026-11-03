@@ -22,7 +22,7 @@ placeholder hull box, `@cpu` gauge). Next: the Stage 1 spikes in
 | `core/commands.tc` | `@mech @sit @clear @cpu @floor @help`, boarding |
 | `mech/chassis.tc` | Spawn, drive, push-out, draw the chassis |
 | `combat/ game/ ui/ maps/` | Empty until their stages |
-| `pack/` | Resource pack source (`pack.mcmeta`, `assets/`; `src/` for Blockbench files, not shipped) |
+| `pack/` | Resource pack source (`pack.mcmeta`, `assets/`; `src/` for Blockbench files and asset generators, not shipped) |
 | `tools/build_pack.py` | Validate the pack, compile its shaders, build `build/mech-pack-<hash>.zip`, publish to `pack-dist` |
 | `tools/shader_variants.json` | Define sets each overridden shader must compile under |
 | `references/` | Mech, weapon and UI art, controls, augments, movement videos |
