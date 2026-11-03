@@ -23,6 +23,7 @@ placeholder hull box, `@cpu` gauge). Next: the Stage 1 spikes in
 | `mech/chassis.tc` | Spawn, drive, push-out, draw the chassis |
 | `combat/ game/ ui/ maps/` | Empty until their stages |
 | `pack/` | Resource pack source (`pack.mcmeta`, `assets/`; `src/` for Blockbench files and asset generators, not shipped) |
+| `pack/assets/minecraft/shaders/core/text.vsh`, `pack/assets/mech/shaders/include/ui.glsl` | Text shader: HUD glyphs, screen-locked menu panels, cursor (marker protocol in PLAN.md, UI and HUD) |
 | `tools/build_pack.py` | Validate the pack, compile its shaders, build `build/mech-pack-<hash>.zip`, publish to `pack-dist` |
 | `tools/shader_variants.json` | Define sets each overridden shader must compile under |
 | `references/` | Mech, weapon and UI art, controls, augments, movement videos |
