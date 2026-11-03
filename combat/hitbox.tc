@@ -1,0 +1,271 @@
+// Part hitboxes (PLAN.md, Damage): every part's hitbox is its display. A
+// part is recorded where it is drawn (placePart, mech/skeleton.tc) as its
+// joint point and its three display matrix columns, so the hitbox always
+// matches what players see, and IK (MEC-27/28) moves it for free.
+//
+// Kinds:
+//   1 box centered on the joint, edges along the columns (hull, torso,
+//     augment modules)
+//   2 box from the joint along column z, centered across it (guns)
+//   3 capsule from the joint along column z, radius half of column x (legs)
+// Tests run against a segment p0 -> p0 + d with t in 0..1 along it: a mech's
+// bounding sphere first, then its parts. The nearest part wins.
+
+/** Hitbox of each part, parallel to mPartEnt: joint, matrix columns, kind,
+ * role ("hull", "torso", "main", "secondary", "aug1", "aug2", "thigh<n>",
+ * "shin<n>"). */
+declare global hbAt: list[vec];
+declare global hbX: list[vec];
+declare global hbY: list[vec];
+declare global hbZ: list[vec];
+declare global hbKind: list[num];
+declare global mPartRole: list[str];
+/** Bounding sphere of each mech: center height above the ground point,
+ * radius, and the world center where it was last drawn. */
+declare global mBoundUp: list[num];
+declare global mBound: list[num];
+declare global mBoundAt: list[vec];
+
+/** Records a new part's hitbox kind and role (columns follow on its first
+ * placePart). */
+function addHitbox(at: vec, kind: num, role: str) {
+    global hbAt.append(at);
+    global hbX.append(vec(0, 0, 0));
+    global hbY.append(vec(0, 0, 0));
+    global hbZ.append(vec(0, 0, 0));
+    global hbKind.append(kind);
+    global mPartRole.append(role);
+}
+
+/** Moves hitbox k to joint at with columns x, y, z. */
+function setHitbox(k: num, at: vec, x: vec, y: vec, z: vec) {
+    global hbAt[k] = at;
+    global hbX[k] = x;
+    global hbY[k] = y;
+    global hbZ[k] = z;
+}
+
+/** Bounding sphere of mech c, top blocks tall: covers the farthest foot,
+ * hull corner, gun muzzle and augment module. */
+function addBound(c: num, top: num) {
+    line sk = classSkeleton(global mClass[c]);
+    line lo = global mLoadout[c];
+    line reach = skeletonReach(global mClass[c], partRow(global mClass[c])["size"] as vec);
+    line mainM = line sk["mainMount"] as vec;
+    line secM = line sk["secMount"] as vec;
+    line mainLen = (partRow(line lo["main"] as str)["size"] as vec).z;
+    line secLen = (partRow(line lo["secondary"] as str)["size"] as vec).z;
+    line reach = num.max(line reach, vec(line mainM.x, 0, line mainM.z).len() + line mainLen);
+    line reach = num.max(line reach, vec(line secM.x, 0, line secM.z).len() + line secLen);
+    line reach = num.max(line reach, augMount(c, 1).len() + 0.5);
+    line up = line top * 0.5;
+    global mBoundUp.append(line up);
+    global mBound.append(num.root(line reach * line reach + line up * line up) + 0.3);
+    global mBoundAt.append(global mPos[c] + vec(0, line up, 0));
+}
+
+/** Center of hitbox k (splash distances, effects). */
+function hitboxCenter(k: num): vec {
+    if (global hbKind[k] == 1) {
+        return global hbAt[k];
+    }
+    return global hbAt[k] + global hbZ[k] * 0.5;
+}
+
+/** Where segment p0 -> p0 + d enters box hitbox k, as t in 0..1, or -1.
+ * Slab test in the box's own units (each column spans 1). */
+function boxHitT(k: num, p0: vec, d: vec): num {
+    line o = p0 - global hbAt[k];
+    line tmin = 0;
+    line tmax = 1;
+    line cols = [global hbX[k], global hbY[k], global hbZ[k]];
+    repeat (line a to 3) {
+        line c = line cols[line a] as vec;
+        line l2 = line c.dot(line c);
+        if (line l2 < 0.001) {
+            return -1;
+        }
+        line u = line o.dot(line c) / line l2;
+        line v = d.dot(line c) / line l2;
+        line lo = -0.5;
+        line hi = 0.5;
+        if (line a == 3 && global hbKind[k] == 2) {
+            line lo = 0;
+            line hi = 1;
+        }
+        if (num.abs(line v) < 0.001) {
+            if (line u < line lo || line u > line hi) {
+                return -1;
+            }
+        } else {
+            line t1 = (line lo - line u) / line v;
+            line t2 = (line hi - line u) / line v;
+            line tmin = num.max(line tmin, num.min(line t1, line t2));
+            line tmax = num.min(line tmax, num.max(line t1, line t2));
+            if (line tmin > line tmax) {
+                return -1;
+            }
+        }
+    }
+    return line tmin;
+}
+
+/** Where segment p0 -> p0 + d enters capsule hitbox k, as t in 0..1, or -1.
+ * Closest points of the two segments (Ericson, Real-Time Collision Detection
+ * 5.1.9); the entry is backed off from the closest point by the chord. */
+function capsuleHitT(k: num, p0: vec, d: vec): num {
+    line e = global hbZ[k];
+    line r = global hbX[k].len() * 0.5;
+    line w = p0 - global hbAt[k];
+    line a = d.dot(d);
+    line b = d.dot(line e);
+    line c = line e.dot(line e);
+    line dw = d.dot(line w);
+    line ew = line e.dot(line w);
+    if (line a < 0.001 || line c < 0.001) {
+        return -1;
+    }
+    line denom = line a * line c - line b * line b;
+    line s = 0;
+    if (line denom > 0.001) {
+        line s = num.clamp((line b * line ew - line c * line dw) / line denom, 0, 1);
+    }
+    line t = (line b * line s + line ew) / line c;
+    if (line t < 0) {
+        line t = 0;
+        line s = num.clamp(0 - line dw / line a, 0, 1);
+    } else if (line t > 1) {
+        line t = 1;
+        line s = num.clamp((line b - line dw) / line a, 0, 1);
+    }
+    line gap = (p0 + d * line s) - (global hbAt[k] + line e * line t);
+    line dist = line gap.len();
+    if (line dist > line r) {
+        return -1;
+    }
+    return num.max(line s - num.root(line r * line r - line dist * line dist) / num.root(line a), 0);
+}
+
+/** Where segment p0 -> p0 + d enters hitbox k, as t in 0..1, or -1. */
+function hitboxT(k: num, p0: vec, d: vec): num {
+    if (global hbKind[k] == 3) {
+        return capsuleHitT(k, p0, d);
+    }
+    return boxHitT(k, p0, d);
+}
+
+/** First part hitbox segment p0 -> p1 crosses, over every live mech except
+ * mech skip (0 = none): {mech, part (index in the mech, 0 = hull), t}, mech 0
+ * when nothing is hit. */
+function segmentHit(p0: vec, p1: vec, skip: num): dict {
+    line d = p1 - p0;
+    line dd = d.dot(d);
+    line best = {mech: 0, part: 0, t: 2};
+    repeat (line c to global mCount) {
+        if (global mAlive[line c] == 1 && line c != skip) {
+            // Bounding sphere: closest point of the segment to its center.
+            line toC = global mBoundAt[line c] - p0;
+            line s = 0;
+            if (line dd > 0.001) {
+                line s = num.clamp(line toC.dot(d) / line dd, 0, 1);
+            }
+            if ((line toC - d * line s).len() <= global mBound[line c]) {
+                line first = global mPartStart[line c];
+                repeat (line i to global mPartCount[line c]) {
+                    line t = hitboxT(line first + line i - 1, p0, d);
+                    if (line t >= 0 && line t < line best["t"] as num) {
+                        line best = {mech: line c, part: line i - 1, t: line t};
+                    }
+                }
+            }
+        }
+    }
+    return line best;
+}
+
+/** Parts of mech c whose center is within r of point at (splash), as part
+ * indices in the mech (0 = hull). */
+function partsInRadius(c: num, at: vec, r: num): list {
+    line out = [];
+    line first = global mPartStart[c];
+    repeat (line i to global mPartCount[c]) {
+        if ((hitboxCenter(line first + line i - 1) - at).len() <= r) {
+            line out.append(line i - 1);
+        }
+    }
+    return line out;
+}
+
+/** Draws hitbox k for the player with particles (debugging). */
+function showHitbox(k: num, effect: par) {
+    line x = global hbX[k];
+    line y = global hbY[k];
+    line z = global hbZ[k];
+    line at = global hbAt[k];
+    if (global hbKind[k] == 3) {
+        line r = line x.len();
+        default.displayParticleRay(effect, loc(line at.x, line at.y, line at.z), line z, 0.2);
+        default.displayParticleSphere(effect, loc(line at.x, line at.y, line at.z), line r);
+        line end = line at + line z;
+        default.displayParticleSphere(effect, loc(line end.x, line end.y, line end.z), line r);
+        return;
+    }
+    line o = line at - (line x + line y) * 0.5;
+    if (global hbKind[k] == 1) {
+        line o = line o - line z * 0.5;
+    }
+    // The 12 edges: 4 along each column.
+    for (line pair of [[line x, line y, line z], [line y, line z, line x], [line z, line x, line y]]) {
+        line e = (line pair as list)[1] as vec;
+        line u = (line pair as list)[2] as vec;
+        line v = (line pair as list)[3] as vec;
+        for (line start of [line o, line o + line u, line o + line v, line o + line u + line v]) {
+            line p = line start as vec;
+            default.displayParticleRay(effect, loc(line p.x, line p.y, line p.z), line e, 0.2);
+        }
+    }
+}
+
+/** @hitbox [mech]: draws every hitbox of a mech (default: yours or the
+ * nearest) for 5 seconds. */
+function hitboxCommand(parts: list) {
+    line c = argNum(parts, 2, nearestMech());
+    if (line c < 1 || line c > global mCount || global mAlive[line c] != 1) {
+        default.sendMessage(s"<gray>No mech to show; stand near one or give its number.");
+        return;
+    }
+    line n = global mPartCount[line c];
+    default.sendMessage(s"<gray>Showing <white>%var(n)</white> hitboxes of mech <white>%var(c)</white>.");
+    repeat (10) {
+        line first = global mPartStart[line c];
+        repeat (line i to global mPartCount[line c]) {
+            showHitbox(line first + line i - 1, par("Electric Spark"));
+        }
+        wait(10);
+    }
+}
+
+/** @hit: tests a 64-block ray from the player's eye against every other
+ * mech's hitboxes, stopping at solid blocks, and names the part hit. */
+function hitCommand {
+    line eye = default.eyeLocation;
+    line p0 = vec(line eye.x, line eye.y, line eye.z);
+    line stop = game.raycast(line eye, 64, blockCollision="Solid blocks");
+    line p1 = vec(line stop.x, line stop.y, line stop.z);
+    line hit = segmentHit(line p0, line p1, mechOf(default.uuid));
+    line c = line hit["mech"] as num;
+    if (line c == 0) {
+        default.sendMessage(s"<gray>Missed.");
+        return;
+    }
+    line k = global mPartStart[line c] + (line hit["part"] as num);
+    line role = global mPartRole[line k];
+    line at = line p0 + (line p1 - line p0) * (line hit["t"] as num);
+    line dist = num.floor((line at - line p0).len() * 10) / 10;
+    default.sendMessage(s"<gray>Hit mech <white>%var(c)</white> <yellow>%var(role)</yellow> at <white>%var(dist)</white> blocks.");
+    default.displayParticleSphere(par("Flame"), loc(line at.x, line at.y, line at.z), 0.3);
+    repeat (6) {
+        showHitbox(line k, par("Electric Spark"));
+        wait(10);
+    }
+}

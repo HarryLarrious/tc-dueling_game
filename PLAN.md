@@ -95,7 +95,7 @@ face is a whole number.)
 | Profile | Tall | Medium, slim | Low and wide | Smallest |
 | Signature | Fires over cover, fast torso twist | Speed, jumps | Keeps moving after leg loss | Wall climbing, ambush |
 | Leg loss | 1 leg lost = immobile, still shoots | 1 leg lost = immobile | Slower per leg; 3 left = immobile | Below 4 can't climb; 2 left = immobile |
-| Displays (placeholder now / final est.) | 8 / ~10 | 8 / ~10 | 16 / ~16 | 12 / ~11 |
+| Displays (placeholder now / final est.) | 10 / ~10 | 10 / ~10 | 18 / ~16 | 14 / ~11 |
 | Art refs | `walkers/` + the in-game build (`Pasted image.png`) | Walker art, lighter | `crawlers/` | `spiders/` (86 Juggernaut) |
 
 **Sprinters are lighter walkers.** Same skeleton, gait code and IK as the
@@ -282,6 +282,18 @@ ballistic arc (~1 s), then is removed.
   torso, guns and augment modules).
 - **Splash** (grenades, HRB rods, explosions): every part whose center is in
   the radius takes damage scaled by distance.
+- **Hitboxes are the displays** (`combat/hitbox.tc`, MEC-35). `placePart`
+  records each part's joint and display matrix columns whenever it draws
+  the part, so hitboxes match what players see and move with IK at no extra
+  cost (unchanged mechs skip both). Kinds: 1 box centered on the joint (hull,
+  torso, augment modules), 2 box from the joint forward (guns), 3 capsule
+  from the joint along the segment, radius half its width (legs).
+  `segmentHit(p0, p1, skipMech)` tests each mech's bounding sphere, then its
+  parts (slab test for boxes, segment-segment distance for capsules), and
+  returns the nearest `{mech, part, t}`; `partsInRadius(mech, at, r)` and
+  `hitboxCenter` serve splash. Part roles (`mPartRole`): hull, torso, main,
+  secondary, aug1, aug2, thigh<n>, shin<n>. `@hitbox [mech]` draws them with
+  particles; `@hit` tests a ray from the eye.
 - **One funnel**: `applyHit(mech, part, amount, impulse)`. Every damage source
   goes through it.
 - **Layers**: armor damage reduction → part HP. There is no passive shield;
@@ -690,7 +702,8 @@ the marker carries the choice.
   skeleton (`mech/skeleton.tc`, `classSkeleton`) lists ride height, torso,
   gun mounts, hips, rest feet, bone lengths and the knee pole (backward for
   the reverse-knee bipeds, up for crawlers and spiders). Display order per
-  mech: hull, torso, main gun, secondary gun, then thigh and shin per leg.
+  mech: hull, torso, main gun, secondary gun, augment modules 1 and 2 (side
+  pods on the hull flanks), then thigh and shin per leg.
   Legs hold a rest pose solved by `kneeOf` (two-bone IK) until gait moves
   the feet.
 - Placeholder box models first, art pass later. The in-game walker build is

@@ -2,9 +2,9 @@
 
 /** One-time setup the first time any code runs on the plot. */
 function ensureInitialized {
-    if (global initialized != 8) {
-        // 8: mechs are drawn as class skeletons (mPartEnt). Hull displays of
-        // older plots (mBody) are removed here once.
+    if (global initialized != 9) {
+        // 9: every part has a hitbox (combat/hitbox.tc); older mechs have
+        // none. Hull displays of plots from before 8 (mBody) are removed.
         for (line body of global mBody as list) {
             select entitiesByName(line body as str);
             selectedEntity.remove();
@@ -14,7 +14,7 @@ function ensureInitialized {
         clearMechs();
         resetConfig();
         global floorSet = 0;
-        global initialized = 8;
+        global initialized = 9;
     }
     ensureCatalog();
 }
@@ -52,6 +52,15 @@ function clearMechs {
     global mDrawnPos = [];
     global mDrawnYaw = [];
     global mSeatUp = [];
+    global hbAt = [];
+    global hbX = [];
+    global hbY = [];
+    global hbZ = [];
+    global hbKind = [];
+    global mPartRole = [];
+    global mBoundUp = [];
+    global mBound = [];
+    global mBoundAt = [];
     global mLoadout = [];
     global mClass = [];
     global mStats = [];
@@ -119,7 +128,7 @@ function argNum(parts: list, index: num, fallback: num): num {
     return num.parse(parts[index] as str);
 }
 
-/** Chat commands: @mech @loadout @sit @clear @cpu @floor @spike @parts @help, and the
+/** Chat commands: @mech @loadout @sit @clear @cpu @floor @spike @parts @hitbox @hit @help, and the
  * pack spike: @pack @hud @menu @model @beep @fx @outline. */
 playerevent command {
     ensureInitialized();
@@ -160,6 +169,10 @@ playerevent command {
         spikeCommand(line parts);
     } else if (line cmd == "parts") {
         partsCommand(line parts);
+    } else if (line cmd == "hitbox") {
+        hitboxCommand(line parts);
+    } else if (line cmd == "hit") {
+        hitCommand();
     } else if (line cmd == "pack") {
         packCommand(line parts);
     } else if (line cmd == "hud") {
@@ -190,6 +203,8 @@ function mechHelp {
     default.sendMessage(s"<yellow>@clear</yellow> <gray>remove all mechs");
     default.sendMessage(s"<yellow>@spike</yellow> <gray>CPU test rigs and projectiles (see @spike for options)");
     default.sendMessage(s"<yellow>@parts [slot] [class]</yellow> <gray>list the part catalog");
+    default.sendMessage(s"<yellow>@hitbox [mech]</yellow> <gray>show a mech's part hitboxes for 5 seconds");
+    default.sendMessage(s"<yellow>@hit</yellow> <gray>test a ray from your eye against mech hitboxes");
     default.sendMessage(s"<gold><bold>Pack spike</bold>");
     default.sendMessage(s"<yellow>@pack [url|status|clear]</yellow> <gray>send the pack, check it, or remove spike entities");
     default.sendMessage(s"<yellow>@hud [anchor] [palette] | grid | text | off</yellow> <gray>marked glyph or UI text on boss bar 1");
