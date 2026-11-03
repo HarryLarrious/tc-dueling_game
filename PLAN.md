@@ -396,6 +396,8 @@ translucent panels and a class cockpit frame (cockpit reference).
     variants and the shared filter reads them as `.rrrr`. Text only gets
     the smooth sampling and canvas placement when it carries a marker color.
     The plot's chat and other unmarked text keep Minecraft's font (MEC-98).
+    Verified on Plot 206003 (2026-11-02): smooth at GUI scale 1–4, HUD
+    readout (`@hud text`) and menu label (`@menu`) placed correctly.
   - Mech parts (MEC-19, optional now that only the UI must not look like
     Minecraft): textures at 16 texels per model unit, sampled filtered by
     `core/item.fsh` and lit per pixel (sky/ground ambient, a wrapped key
