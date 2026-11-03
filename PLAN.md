@@ -187,8 +187,10 @@ Every gun fires projectiles. References are in `references/weapons/`.
 - **Aim (hold right click)**: steadier gun, tighter spread, slower torso
   traverse, slower walking, and a post-effect digital zoom set per gun (about
   1.5× for light guns up to 3× for the railgun) with a scope frame.
-- **Switch fire (shift)**: toggles which gun left click fires; use the
-  secondary while the main gun cools down.
+- **Switch fire (shift)**: shift is the secondary gun's trigger, the way
+  left click is the main gun's: hold it to fire the secondary (owner,
+  2026-11-03, MEC-93). Use it while the main gun cools down; both can fire
+  at once.
 
 ## Augments
 
@@ -383,8 +385,8 @@ ballistic arc (~1 s), then is removed.
 | W/A/S/D | `steerForwardMovement`, `steerSidewaysMovement`, `movementKeyChange` | Move | — |
 | Space | `vehicleJump` / `pressedMovementKeys` | Light mechs jump (spider: detach from wall); heavy mechs boost forward | — |
 | Right click (hold) | `rightClick`, `isUsingItem`, `stopUsingItem` | Aim | Back |
-| Left click | `leftClick` | Shoot the selected gun | Select |
-| Shift | `movementKeyChange`; cancel `dismount` | Switch fire: main ↔ secondary | — |
+| Left click | `leftClick` | Fire the main gun | Select |
+| Shift (hold) | `movementKeyChange`; cancel `dismount` | Fire the secondary gun | — |
 | F | `swapHands` (cancelled) | Augment 1 | — |
 | Q | `dropItem` (cancelled) | Augment 2 | — |
 | Middle click | `pickBlock` / `pickEntity` | Ping: the server casts the look ray and marks what it hits for your party | — |
@@ -1048,8 +1050,9 @@ low HP, visor; the HUD stays sharp over all of them.
 4. Do AI mechs roam Extraction as a PvE threat? [yes, small point drops]
 5. Keep Training ground as a third queue card? [yes, solo practice vs AI, no
    rewards]
-6. Switch fire: tap shift to toggle, or hold shift for the secondary?
-   [toggle]
+6. ~~Switch fire: tap shift to toggle, or hold shift for the secondary?~~
+   Decided (owner, 2026-11-03): shift fires the secondary, like left click
+   fires the main gun.
 7. What is the medium main gun? [autocannon]
 8. Do pilots ever leave the mech mid-match, Titanfall-style? [no]
 9. Who makes the final models and sounds? [placeholder boxes and stock sounds
