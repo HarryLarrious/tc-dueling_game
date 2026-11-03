@@ -1,0 +1,306 @@
+// Menu framework (PLAN.md, UI and HUD; MEC-72). A player in a menu rides a
+// fixed seat (the menu room spot; their own position until the room is
+// built) looking at yaw 0, pitch 0. A screen is a list of widgets; each is a
+// text display at the player's eye, private to them, that the text shader
+// locks to the canvas (marker kind 248, anchor 4 = the canvas center). The
+// shader draws the cursor from the camera rotation; the server maps yaw and
+// pitch to the same canvas offset (4 units per degree) for hover, recolors
+// the hovered button, and holds the camera inside the canvas. Left click
+// activates, right click goes back, the hotbar scroll scrolls
+// (core/input.tc routes them here while a menu is open).
+//
+// Widget: {kind ("panel", "label", "button"), id, x, y (canvas units from
+// the center, y down), w, h (size; buttons' hit box), text, font (text_s,
+// text, text_l), palette, hover (palette when hovered), layer (-0.03..1,
+// smaller in front), action}. Screens are built by menuScreen(id); other
+// menus (top bar, queue, customizer, settings) add their screens there and
+// handle their actions in menuAction.
+
+/** Menu state per player (uuid -> {screen, seat, cursor, widgets, hover}). */
+declare global menuOf: dict;
+/** Where menu seats go; unset = the player's own position. */
+declare global menuRoomAt: loc;
+declare global menuRoomSet: num;
+
+/** Canvas units per block on a display at the eye (text displays draw 40
+ * font pixels per block); the shader uses the same factor. */
+function menuUnits(): num {
+    return 40;
+}
+
+/** A panel widget: the rounded panel glyph scaled to w x h, centered at x, y. */
+function menuPanel(id: str, x: num, y: num, w: num, h: num, palette: num, layer: num): dict {
+    return {kind: "panel", id: id, x: x, y: y, w: w, h: h, text: "", font: "", palette: palette, hover: palette, layer: layer, action: ""};
+}
+
+/** A label widget: text centered at x, y. */
+function menuLabel(id: str, text: str, font: str, x: num, y: num, palette: num): dict {
+    return {kind: "label", id: id, x: x, y: y, w: 0, h: 0, text: text, font: font, palette: palette, hover: palette, layer: -0.01, action: ""};
+}
+
+/** A button widget: a w x h panel with centered text that runs `action`
+ * when clicked. */
+function menuButton(id: str, text: str, x: num, y: num, w: num, h: num, action: str): dict {
+    return {kind: "button", id: id, x: x, y: y, w: w, h: h, text: text, font: "text", palette: 1, hover: 3, layer: 0.1, action: action};
+}
+
+/** The styled text a widget shows in palette `palette`. */
+function menuWidgetText(w: dict, palette: num): txt {
+    if (w["kind"] as str == "panel") {
+        return uiGlyph("", uiColor(248, 4, palette));
+    }
+    return uiText(w["font"] as str, w["text"] as str, uiColor(248, 4, palette));
+}
+
+/** Display matrix that puts a widget on the canvas: panels scale the panel
+ * glyph (visible art x -31..32, y -17.5..13.5 units at scale 1) to w x h
+ * centered at x, y; text sits with its line's center near x, y. */
+function menuMatrix(w: dict): list {
+    line u = menuUnits();
+    line x = w["x"] as num;
+    line y = w["y"] as num;
+    line z = w["layer"] as num;
+    if (w["kind"] as str == "panel") {
+        line sx = (w["w"] as num) / 63;
+        line sy = (w["h"] as num) / 31;
+        return [line sx, 0, 0, (line x - 0.5 * line sx) / line u, 0, line sy, 0, (0 - line y - 2 * line sy) / line u, 0, 0, 1, line z, 0, 0, 0, 1];
+    }
+    // Text displays put a line's bottom at the origin: drop it half a line.
+    return [1, 0, 0, line x / line u, 0, 1, 0, (0 - line y - 4) / line u, 0, 0, 1, line z, 0, 0, 0, 1];
+}
+
+/** Spawns one widget's display at eye point `at` for player uuid. */
+function menuSpawnWidget(uuid: str, at: loc, w: dict): str {
+    game.spawnTextDisplay(at, menuWidgetText(w, w["palette"] as num));
+    line ent = lastEntity.uuid;
+    select entitiesByName(line ent);
+    selectedEntity.setRotation(0, 0);
+    selectedEntity.setDisplayBillboard(type="Fixed");
+    selectedEntity.setTextDisplayBackground("#000000", 0);
+    selectedEntity.setTextDisplayTextShadow(textShadow="Disable");
+    selectedEntity.setDisplayCullingSize(0, 0);
+    selectedEntity.setDisplayTransformationMatrix(menuMatrix(w));
+    select reset;
+    privAdd(uuid, line ent);
+    return line ent;
+}
+
+/** Removes a display and forgets it as private. */
+function menuRemoveEnt(ent: str) {
+    select entitiesByName(ent);
+    selectedEntity.remove();
+    select reset;
+    privForget(ent);
+}
+
+/** Widgets of screen `id` (the main screen until MEC-73 replaces it). */
+function menuScreen(id: str): list {
+    return [
+        menuPanel("bg", 0, 0, 160, 124, 0, 0.5),
+        menuLabel("title", "MECHS", "text_l", 0, -36, 3),
+        menuButton("play", "PLAY", 0, -6, 90, 18, "play"),
+        menuButton("loadout", "LOADOUT", 0, 16, 90, 18, "loadout"),
+        menuButton("close", "CLOSE", 0, 38, 90, 18, "close")
+    ];
+}
+
+/** Opens (or switches the player's menu to) screen `id`. */
+function menuOpen(id: str) {
+    line uuid = default.uuid;
+    line st = {};
+    if (global menuOf.hasKeys(uuid)) {
+        line st = global menuOf[uuid] as dict;
+        for (line w of line st["widgets"] as list) {
+            menuRemoveEnt((line w as dict)["ent"] as str);
+        }
+    } else {
+        line spot = default.location;
+        if (global menuRoomSet == 1) {
+            line spot = global menuRoomAt;
+        }
+        game.spawnInteractionEntity(loc(line spot.x, line spot.y, line spot.z), 0.8, 0.6);
+        line seat = lastEntity.uuid;
+        default.rideEntity(line seat);
+        default.setRotation(0, 0);
+        // Let the riding pose settle before reading the eye position.
+        wait(2);
+        line eye = default.eyeLocation;
+        game.spawnTextDisplay(loc(line eye.x, line eye.y, line eye.z, 0, 0), uiGlyph("", uiColor(244, 0, 0)));
+        line cursor = lastEntity.uuid;
+        select entitiesByName(line cursor);
+        selectedEntity.setDisplayBillboard(type="Fixed");
+        selectedEntity.setTextDisplayBackground("#000000", 0);
+        selectedEntity.setTextDisplayTextShadow(textShadow="Disable");
+        selectedEntity.setDisplayCullingSize(0, 0);
+        // Tip of the cursor glyph on the look point (+2.75, +13.75 units).
+        selectedEntity.setDisplayTransformationMatrix([1, 0, 0, 0.06875, 0, 1, 0, -0.34375, 0, 0, 1, 0, 0, 0, 0, 1]);
+        select reset;
+        privAdd(uuid, line cursor);
+        line st = {seat: line seat, cursor: line cursor, eye: loc(line eye.x, line eye.y, line eye.z, 0, 0)};
+        start menuLoop;
+    }
+    line at = line st["eye"] as loc;
+    line placed = [];
+    for (line def of menuScreen(id)) {
+        line w = line def as dict;
+        line w["ent"] = menuSpawnWidget(uuid, line at, line w);
+        line placed.append(line w);
+    }
+    line st["screen"] = id;
+    line st["widgets"] = line placed;
+    line st["hover"] = "";
+    global menuOf[uuid] = line st;
+}
+
+/** Closes the player's menu: removes its displays and seat. */
+function menuClose {
+    line uuid = default.uuid;
+    if (!global menuOf.hasKeys(uuid)) {
+        return;
+    }
+    line st = global menuOf[uuid] as dict;
+    global menuOf.remove(uuid);
+    for (line w of line st["widgets"] as list) {
+        menuRemoveEnt((line w as dict)["ent"] as str);
+    }
+    menuRemoveEnt(line st["cursor"] as str);
+    default.rideEntity();
+    select entitiesByName(line st["seat"] as str);
+    selectedEntity.remove();
+    select reset;
+}
+
+/** 1 while the player has a menu open. */
+function menuIsOpen(uuid: str): num {
+    if (global menuOf.hasKeys(uuid)) {
+        return 1;
+    }
+    return 0;
+}
+
+/** The player's cursor as a canvas offset from the center, from yaw and
+ * pitch (mech_cursor_point in mech:ui.glsl). */
+function menuCursor(): vec {
+    line view = default.location;
+    line yaw: num = line view.getCoordinate(coord="Yaw");
+    while (line yaw > 180) {
+        line yaw -= 360;
+    }
+    while (line yaw < -180) {
+        line yaw += 360;
+    }
+    line pitch: num = line view.getCoordinate(coord="Pitch");
+    return vec(4 * line yaw, 4 * line pitch, 0);
+}
+
+/** Id of the button under the player's cursor, or "". */
+function menuHit(): str {
+    return menuHitAt(menuCursor());
+}
+
+/** Id of the player's button under canvas offset cur, or "". */
+function menuHitAt(cur: vec): str {
+    line uuid = default.uuid;
+    for (line wv of (global menuOf[uuid] as dict)["widgets"] as list) {
+        line w = line wv as dict;
+        if (line w["kind"] as str == "button") {
+            line dx = num.abs(cur.x - (line w["x"] as num));
+            line dy = num.abs(cur.y - (line w["y"] as num));
+            if (line dx <= (line w["w"] as num) / 2 && line dy <= (line w["h"] as num) / 2) {
+                return line w["id"] as str;
+            }
+        }
+    }
+    return "";
+}
+
+/** Recolors buttons when the hovered one changes. */
+function menuHoverTick {
+    line uuid = default.uuid;
+    line st = global menuOf[uuid] as dict;
+    line now = menuHit();
+    if (line now == line st["hover"] as str) {
+        return;
+    }
+    for (line wv of line st["widgets"] as list) {
+        line w = line wv as dict;
+        line id = line w["id"] as str;
+        if (line id == line now || line id == line st["hover"] as str) {
+            line pal = line w["palette"] as num;
+            if (line id == line now) {
+                line pal = line w["hover"] as num;
+            }
+            select entitiesByName(line w["ent"] as str);
+            selectedEntity.setTextDisplayText(menuWidgetText(line w, line pal));
+            select reset;
+        }
+    }
+    line st["hover"] = line now;
+    global menuOf[uuid] = line st;
+}
+
+/** Keeps the camera inside the canvas (a 16:9 canvas is 640 x 360 units:
+ * yaw within +-78, pitch within +-43 degrees). */
+function menuClampView {
+    line view = default.location;
+    line yaw: num = line view.getCoordinate(coord="Yaw");
+    while (line yaw > 180) {
+        line yaw -= 360;
+    }
+    while (line yaw < -180) {
+        line yaw += 360;
+    }
+    line pitch: num = line view.getCoordinate(coord="Pitch");
+    line cy = num.clamp(line yaw, -78, 78);
+    line cp = num.clamp(line pitch, -43, 43);
+    if (line cy != line yaw || line cp != line pitch) {
+        default.setRotation(line cp, line cy);
+    }
+}
+
+process menuLoop {
+    repeat {
+        if (menuIsOpen(default.uuid) != 1) {
+            break;
+        }
+        menuClampView();
+        menuHoverTick();
+        wait;
+    }
+}
+
+/** Left click: runs the hovered button's action. */
+function menuClick {
+    menuClickAt(menuCursor());
+}
+
+/** Runs the action of the player's button under canvas offset cur. */
+function menuClickAt(cur: vec) {
+    line uuid = default.uuid;
+    line hit = menuHitAt(cur);
+    if (line hit == "") {
+        return;
+    }
+    for (line wv of (global menuOf[uuid] as dict)["widgets"] as list) {
+        if ((line wv as dict)["id"] as str == line hit) {
+            menuAction((line wv as dict)["action"] as str);
+            return;
+        }
+    }
+}
+
+/** Runs a menu action for the player. Screens add their actions here. */
+function menuAction(action: str) {
+    global menuLastAction = action;
+    if (action == "close" || action == "back") {
+        menuClose();
+    } else if (action == "loadout") {
+        menuClose();
+        showLoadout(playerLoadout());
+    } else if (action == "play") {
+        default.sendMessage(s"<gray>Queues arrive with the queue selector (MEC-74).");
+    }
+}
+
+/** Last action run (tests and debugging). */
+declare global menuLastAction: str;

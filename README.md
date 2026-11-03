@@ -19,6 +19,7 @@ class skeletons of placeholder parts, `@cpu` gauge). Next: the Stage 1 spikes in
 | --- | --- |
 | `core/state.tc` | Mech and world state declarations + tunables |
 | `core/loop.tc` | Main loop: per-tick drive, push-out, draw |
+| `core/input.tc` | Click and scroll events, routed by what the player is doing |
 | `core/commands.tc` | `@mech @loadout @sit @clear @cpu @floor @parts @hitbox @hit @hp @splash @selftest @help`, the pack spike commands, boarding |
 | `mech/chassis.tc` | Spawn a mech from a loadout, drive, push-out, draw |
 | `mech/skeleton.tc` | Class skeletons: placeholder part displays, right-handed part matrices, two-bone knee solve |
@@ -39,6 +40,7 @@ class skeletons of placeholder parts, `@cpu` gauge). Next: the Stage 1 spikes in
 | `ui/cockpit.tc` | Cockpit frame per class, weapon crosshair, gun reticle display |
 | `ui/cockpitfont.tc` | Generated cockpit glyph table (`pack/src/cockpit_assets.py`) |
 | `ui/private.tc` | Entities only their owner sees (markers, reticles), hidden from late joiners |
+| `ui/menu.tc` | Menu framework: seated screens of panels, labels and buttons, hover, click, back, scroll |
 | `ui/hudfont.tc` | Generated HUD font advances (`pack/src/hud_assets.py`) |
 | `pack/` | Resource pack source (`pack.mcmeta`, `assets/`; `src/` for Blockbench files and asset generators, not shipped) |
 | `pack/assets/minecraft/shaders/core/text.vsh`, `pack/assets/mech/shaders/include/ui.glsl` | Text shader: HUD glyphs, screen-locked menu panels, cursor (marker protocol in PLAN.md, UI and HUD) |

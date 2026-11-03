@@ -10,14 +10,6 @@ declare global packPrivate: list[str];
 declare global packModels: list[str];
 declare global packSwingId: num;
 
-/** Per-player menu: 1 while open, its seat, panel and cursor displays. */
-declare global "menuOn %uuid": num;
-declare global "menuSeat %uuid": str;
-declare global "menuPanel %uuid": str;
-declare global "menuCursor %uuid": str;
-declare global "menuLabel %uuid": str;
-/** 1 while the server's hover test finds the cursor on the panel. */
-declare global "menuHover %uuid": num;
 /** The player's post-effect marker display (@fx). */
 declare global "fxMark %uuid": str;
 
@@ -87,7 +79,6 @@ function sendPack(url: str) {
 
 /** Removes every spike entity and the player's boss bars and menu state. */
 function packClear {
-    menuClose();
     repeat (line i to global packEnts.len()) {
         select entitiesByName(global packEnts[line i]);
         selectedEntity.remove();
@@ -96,7 +87,6 @@ function packClear {
     global packEnts = [];
     global packPrivate = [];
     global packModels = [];
-    global "menuOn %uuid" = 0;
     global "fxMark %uuid" = "";
     default.removeBossBar();
     default.sendMessage(s"<gray>Pack spike entities and boss bars cleared.");
@@ -147,133 +137,6 @@ function hudCommand(parts: list) {
     line color = uiColor(252, line anchor * 3, line palette);
     default.setBossBar(uiGlyph("", line color), 1, 1);
     default.sendMessage(s"<gray>HUD panel at anchor <white>%var(anchor)</white>, color <white>%var(color)</white>. Change GUI scale and FOV: it must not move.");
-}
-
-// ---------------------------------------------------------------- @menu
-
-/** @menu: open a seated menu with a panel and the shader cursor; @menu
- * again or sneaking out of the seat closes it. */
-function menuCommand {
-    if (global "menuOn %uuid" == 1) {
-        menuClose();
-        return;
-    }
-    line here = default.location;
-    game.spawnInteractionEntity(loc(line here.x, line here.y, line here.z), 0.8, 0.6);
-    line seat = lastEntity.uuid;
-    trackEntity(line seat);
-    global "menuSeat %uuid" = line seat;
-    default.rideEntity(line seat);
-    default.setRotation(0, 0);
-    // Let the riding pose settle before reading the eye position.
-    wait(2);
-    line eye = default.eyeLocation;
-    line at = loc(line eye.x, line eye.y, line eye.z, 0, 0);
-
-    game.spawnTextDisplay(line at, uiGlyph("", uiColor(248, 4, 0)));
-    global "menuPanel %uuid" = lastEntity.uuid;
-    menuDisplay(lastEntity.uuid);
-
-    game.spawnTextDisplay(line at, uiGlyph("", uiColor(244, 0, 0)));
-    global "menuCursor %uuid" = lastEntity.uuid;
-    menuDisplay(lastEntity.uuid);
-
-    // A label inside the panel, one layer in front of it.
-    game.spawnTextDisplay(line at, uiText("text", "MENU TEST", uiColor(248, 4, 3)));
-    global "menuLabel %uuid" = lastEntity.uuid;
-    menuDisplay(lastEntity.uuid);
-    select entitiesByName(global "menuLabel %uuid");
-    selectedEntity.setDisplayTransformationMatrix([
-        1, 0, 0, 0,
-        0, 1, 0, 0,
-        0, 0, 1, -0.01,
-        0, 0, 0, 1
-    ]);
-    select reset;
-    // Put the cursor's tip on the look point: the tip sits at canvas
-    // -2.75, -13.75 from the display origin (pack/src/spike_assets.py prints
-    // it), so move +2.75, +13.75 canvas units = 0.06875, -0.34375 blocks.
-    select entitiesByName(global "menuCursor %uuid");
-    selectedEntity.setDisplayTransformationMatrix([
-        1, 0, 0, 0.06875,
-        0, 1, 0, -0.34375,
-        0, 0, 1, 0,
-        0, 0, 0, 1
-    ]);
-    select reset;
-
-    global "menuHover %uuid" = 0;
-    global "menuOn %uuid" = 1;
-    start menuLoop;
-    default.sendMessage(s"<gray>Menu open: move the mouse. The panel turns cyan when the server sees the cursor on it. Sneak or <yellow>@menu</yellow> to close.");
-}
-
-/** Closes the player's menu: removes its displays and seat. */
-function menuClose {
-    if (global "menuOn %uuid" != 1) {
-        return;
-    }
-    global "menuOn %uuid" = 0;
-    select entitiesByName(global "menuPanel %uuid");
-    selectedEntity.remove();
-    select reset;
-    select entitiesByName(global "menuCursor %uuid");
-    selectedEntity.remove();
-    select reset;
-    select entitiesByName(global "menuLabel %uuid");
-    selectedEntity.remove();
-    select reset;
-    default.rideEntity();
-    select entitiesByName(global "menuSeat %uuid");
-    selectedEntity.remove();
-    select reset;
-    default.sendActionBar(s"");
-}
-
-/** True when canvas offset (x, y) from the center anchor is on the panel.
- * The panel's visible art spans x -31..32, y -17.5..13.5 (printed by
- * pack/src/spike_assets.py). */
-function onPanel(x: num, y: num): num {
-    if (x >= -31 && x <= 32 && y >= -17.5 && y <= 13.5) {
-        return 1;
-    }
-    return 0;
-}
-
-/** Server side of the cursor: same mapping as mech_cursor_point in
- * mech:ui.glsl, as an offset from the canvas center. */
-process menuLoop {
-    repeat {
-        if (global "menuOn %uuid" != 1) {
-            break;
-        }
-        line view = default.location;
-        line yaw: num = line view.getCoordinate(coord="Yaw");
-        if (line yaw > 180) {
-            line yaw -= 360;
-        }
-        if (line yaw < -180) {
-            line yaw += 360;
-        }
-        line pitch: num = line view.getCoordinate(coord="Pitch");
-        line x = 4 * line yaw;
-        line y = 4 * line pitch;
-        line hover = onPanel(line x, line y);
-        if (line hover != global "menuHover %uuid") {
-            global "menuHover %uuid" = line hover;
-            line palette = 0;
-            if (line hover == 1) {
-                line palette = 3;
-            }
-            select entitiesByName(global "menuPanel %uuid");
-            selectedEntity.setTextDisplayText(uiGlyph("", uiColor(248, 4, line palette)));
-            select reset;
-        }
-        line xs = num.floor(line x * 10) / 10;
-        line ys = num.floor(line y * 10) / 10;
-        default.sendActionBar(s"<gray>cursor <white>%var(xs), %var(ys)</white> hover <white>%var(hover)</white>");
-        wait;
-    }
 }
 
 // ---------------------------------------------------------------- @model @beep

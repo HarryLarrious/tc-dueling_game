@@ -1,0 +1,29 @@
+// Player input events, routed by what the player is doing. Each DF event can
+// be declared once per project, so every system adds its branch here: menus
+// now (ui/menu.tc), firing and aiming when piloting (MEC-42).
+
+playerevent leftClick {
+    if (menuIsOpen(default.uuid) == 1) {
+        menuClick();
+    }
+}
+
+playerevent rightClick {
+    if (menuIsOpen(default.uuid) == 1) {
+        menuAction("back");
+    }
+}
+
+playerevent changeSlot {
+    // The hand holds the blank item in slot 1 (hideHand); scrolling moves
+    // off it, so read the direction and put it back.
+    if (menuIsOpen(default.uuid) == 1) {
+        line slot = event.hotbarSlot;
+        if (line slot == 2) {
+            menuAction("scroll down");
+        } else if (line slot == 9) {
+            menuAction("scroll up");
+        }
+        default.setHotbarSlot(1);
+    }
+}

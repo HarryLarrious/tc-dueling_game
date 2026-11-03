@@ -571,6 +571,18 @@ translucent panels and a class cockpit frame (cockpit reference).
   draws the cursor from the camera rotation, so it moves on the client at
   once. The server applies the same mapping to the player's yaw and pitch for
   hover and clicks, and `setRotation` holds the camera at the canvas edges.
+- **Menus as built** (`ui/menu.tc`, MEC-72): `menuOpen(screen)` seats the
+  player (menu room spot, or where they stand), spawns the cursor and the
+  screen's widgets (`menuPanel`, `menuLabel`, `menuButton`) as private text
+  displays at the eye; panels scale the one panel glyph to any size. A loop
+  per open menu recolors the hovered button and clamps the view. Input comes
+  through `core/input.tc` (the one place for click/scroll events: menus now,
+  firing for MEC-42): left click runs the hovered button's action in
+  `menuAction`, right click is "back", hotbar scroll is "scroll up/down".
+  Screens are added in `menuScreen`. Found in game (2026-11-03):
+  `setRotation` does not turn a player who rides a seat, so the canvas-edge
+  clamp likely does nothing; the cursor just stops at the canvas edge in the
+  shader (clamped there).
 - The pack hides vanilla HUD sprites (crosshair, hotbar, hearts, food, XP,
   boss bar bars) so only our HUD shows. Done so far: boss bars, the
   crosshair (combat draws its own) and the hotbar frame, selection and

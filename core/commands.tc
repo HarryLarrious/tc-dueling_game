@@ -201,7 +201,12 @@ playerevent command {
     } else if (line cmd == "hud") {
         hudCommand(line parts);
     } else if (line cmd == "menu") {
-        menuCommand();
+        // @menu toggles the menu (the main screen until MEC-73).
+        if (menuIsOpen(default.uuid) == 1) {
+            menuClose();
+        } else {
+            menuOpen("main");
+        }
     } else if (line cmd == "model") {
         modelCommand(line parts);
     } else if (line cmd == "beep") {
@@ -234,7 +239,7 @@ function mechHelp {
     default.sendMessage(s"<gold><bold>Pack spike</bold>");
     default.sendMessage(s"<yellow>@pack [url|status|clear]</yellow> <gray>send the pack, check it, or remove spike entities");
     default.sendMessage(s"<yellow>@hud [anchor] [palette] | grid | text | off</yellow> <gray>marked glyph or UI text on boss bar 1");
-    default.sendMessage(s"<yellow>@menu</yellow> <gray>seated menu: panel, shader cursor, server hover readout");
+    default.sendMessage(s"<yellow>@menu</yellow> <gray>open or close the menu (mouse to point, left click to choose, right click back)");
     default.sendMessage(s"<yellow>@model [party]</yellow> <gray>test part swinging about its joint");
     default.sendMessage(s"<yellow>@beep</yellow> <gray>custom sound");
     default.sendMessage(s"<yellow>@fx zoom+shake+tint+gray [strength%] [party]|off</yellow> <gray>screen effects via the marker");
