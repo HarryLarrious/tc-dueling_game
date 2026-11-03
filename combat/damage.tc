@@ -1,0 +1,150 @@
+// Damage (PLAN.md, Damage): every damage source goes through applyHit.
+// Layers: armor damage reduction, then part HP. There is no passive shield;
+// shielding comes from the Electrostatic Dome (MEC-48), which will sit in
+// front of applyHit. A part at 0 HP is destroyed: its hitbox stops taking
+// hits and partDestroyed runs the part-loss effects (MEC-37, MEC-38).
+//
+// Part HP (first-pass tunables, balanced in play): hull = the loadout's
+// hullHp; guns and augment modules = their catalog HP; torso = 0.6, thigh =
+// 0.35 and shin = 0.3 of the class HP. The armor's HP bonus applies to all.
+
+/** HP left and starting HP of each part, parallel to mPartEnt. */
+declare global hbHp: list[num];
+declare global hbHpMax: list[num];
+/** Velocity change from hits waiting for the chassis (MEC-30 adds it to
+ * vel and clears it). Impulses are already divided by the mech's mass. */
+declare global mImpulse: list[vec];
+
+/** Starting HP of part i (0 = hull) of mech c. */
+function basePartHp(c: num, i: num): num {
+    line lo = global mLoadout[c];
+    line clsHp = partNum(global mClass[c], "hp");
+    line bonus = 1 + partNum(line lo["armor"] as str, "hpBonus");
+    if (i == 0) {
+        return (global mStats[c])["hullHp"] as num;
+    }
+    if (i == 1) {
+        return line clsHp * 0.6 * line bonus;
+    }
+    if (i <= 5) {
+        line slot = ["main", "secondary", "aug1", "aug2"][i - 1] as str;
+        return partNum(line lo[line slot] as str, "hp") * line bonus;
+    }
+    // Legs from part 6: thigh, shin, thigh, shin, ...
+    if ((i - 6) % 2 == 0) {
+        return line clsHp * 0.35 * line bonus;
+    }
+    return line clsHp * 0.3 * line bonus;
+}
+
+/** Gives every part of a newly spawned mech c full HP. */
+function addDamageState(c: num) {
+    repeat (line i to global mPartCount[c]) {
+        line hp = num.floor(basePartHp(c, line i - 1));
+        global hbHp.append(line hp);
+        global hbHpMax.append(line hp);
+    }
+    global mImpulse.append(vec(0, 0, 0));
+}
+
+/** The damage funnel: part `part` (0 = hull) of mech c takes `amount` raw
+ * damage and the mech gets `impulse` (blocks per tick times mass). Armor
+ * reduction comes first, then part HP. Returns the damage dealt (0 when the
+ * mech or part is already gone). */
+function applyHit(c: num, part: num, amount: num, impulse: vec): num {
+    if (c < 1 || c > global mCount || global mAlive[c] != 1) {
+        return 0;
+    }
+    line k = global mPartStart[c] + part;
+    if (global hbHp[line k] <= 0) {
+        return 0;
+    }
+    line mass = (global mStats[c])["mass"] as num;
+    global mImpulse[c] = global mImpulse[c] + impulse * (1 / line mass);
+    line dealt = num.min(amount * (1 - (global mStats[c])["reduction"] as num), global hbHp[line k]);
+    global hbHp[line k] = global hbHp[line k] - line dealt;
+    if (global hbHp[line k] < 0.5) {
+        global hbHp[line k] = 0;
+        partDestroyed(c, part);
+    }
+    return line dealt;
+}
+
+/** Splash: every part of every live mech whose center is within radius of
+ * point at takes amount scaled linearly from full at the center to 0 at the
+ * edge, pushed away from the center by up to `push`. Returns the total
+ * damage dealt. */
+function splashHit(at: vec, radius: num, amount: num, push: num): num {
+    line total = 0;
+    repeat (line c to global mCount) {
+        if (global mAlive[line c] == 1 && (global mBoundAt[line c] - at).len() <= global mBound[line c] + radius) {
+            for (line part of partsInRadius(line c, at, radius)) {
+                line i = line part as num;
+                line away = hitboxCenter(global mPartStart[line c] + line i) - at;
+                line fall = 1 - line away.len() / radius;
+                line dir = vec(0, 1, 0);
+                if (line away.len() > 0.01) {
+                    line dir = line away.setLength(1);
+                }
+                line total += applyHit(line c, line i, amount * line fall, line dir * push * line fall);
+            }
+        }
+    }
+    return line total;
+}
+
+/** Part `part` of mech c just reached 0 HP: its hitbox stops taking hits.
+ * Part-loss effects per class and debris (MEC-37) and mech destruction when
+ * the hull goes (MEC-38) hook in here. */
+function partDestroyed(c: num, part: num) {
+    line k = global mPartStart[c] + part;
+    global hbKind[line k] = 0;
+    line role = global mPartRole[line k];
+    select playersByName(global mDriver[c]);
+    selected.sendMessage(s"<red>Your <white>%var(role)</white> was destroyed.");
+    select reset;
+}
+
+/** @hp [mech]: lists the HP of every part of a mech (default: yours or the
+ * nearest). */
+function hpCommand(parts: list) {
+    line c = argNum(parts, 2, nearestMech());
+    if (line c < 1 || line c > global mCount || global mAlive[line c] != 1) {
+        default.sendMessage(s"<gray>No mech to show; stand near one or give its number.");
+        return;
+    }
+    line first = global mPartStart[line c];
+    line out = "";
+    repeat (line i to global mPartCount[line c]) {
+        line k = line first + line i - 1;
+        line role = global mPartRole[line k];
+        line hp = num.floor(global hbHp[line k]);
+        line max = global hbHpMax[line k];
+        if (line hp <= 0) {
+            line out = "%var(out) <dark_gray>%var(role) 0/%var(max)</dark_gray>";
+        } else {
+            line out = "%var(out) <white>%var(role)</white> %var(hp)/%var(max)";
+        }
+    }
+    line red = num.floor((global mStats[line c])["reduction"] as num * 100);
+    default.sendMessage(s"<gray>Mech <white>%var(c)</white>, armor <white>%var(red)</white>%:");
+    default.sendMessage(s"<gray>%var(out)".parseExpression(allowed="Full"));
+}
+
+/** @splash <damage> <radius>: a splash where the player's eye ray ends
+ * (first part hit or solid block within 64 blocks). */
+function splashCommand(parts: list) {
+    line amount = argNum(parts, 2, 100);
+    line radius = argNum(parts, 3, 3);
+    line eye = default.eyeLocation;
+    line p0 = vec(line eye.x, line eye.y, line eye.z);
+    line stop = game.raycast(line eye, 64, blockCollision="Solid blocks");
+    line p1 = vec(line stop.x, line stop.y, line stop.z);
+    line hit = segmentHit(line p0, line p1, mechOf(default.uuid));
+    if (line hit["mech"] as num != 0) {
+        line p1 = line p0 + (line p1 - line p0) * (line hit["t"] as num);
+    }
+    line dealt = num.floor(splashHit(line p1, line radius, line amount, 0.5));
+    default.displayParticleSphere(par("Flame"), loc(line p1.x, line p1.y, line p1.z), line radius * 2);
+    default.sendMessage(s"<gray>Splash <white>%var(amount)</white> radius <white>%var(radius)</white>: <white>%var(dealt)</white> damage dealt.");
+}
