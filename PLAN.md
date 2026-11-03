@@ -395,7 +395,8 @@ translucent panels and a class cockpit frame (cockpit reference).
   no shadow, hidden from everyone else. The shader reads each glyph's offset
   from the display origin (40 canvas units per block, display scale 1) and
   adds the anchor. A display's translation moves it on the canvas; its z
-  translation orders overlapping panels (smaller z is in front, −0.04 to 1).
+  translation orders overlapping panels (smaller z is in front, −0.03 to 1);
+  the cursor is always drawn in front of every panel.
   Marked glyphs further than 12 blocks from the camera are hidden, so a
   missed `setEntityHidden` never shows another player's menu.
 - **Cursor mapping** (shader and server must match): with yaw normalized to
@@ -420,7 +421,17 @@ translucent panels and a class cockpit frame (cockpit reference).
   once. The server applies the same mapping to the player's yaw and pitch for
   hover and clicks, and `setRotation` holds the camera at the canvas edges.
 - The pack hides vanilla HUD sprites (crosshair, hotbar, hearts, food, XP,
-  boss bar bars) so only our HUD shows.
+  boss bar bars) so only our HUD shows. Done so far: boss bars and the
+  hotbar frame, selection and offhand slots.
+- **No hand, no hotbar items**: the player holds one item with the empty
+  model `mech:blank` (`"type": "minecraft:empty"`) in slot 1 and nothing
+  else. With an item in the main hand vanilla does not draw the
+  first-person arm, and the blank item draws nothing in hand or hotbar. Its
+  name is a 1-pixel space glyph so the item-name popup stays empty.
+- **Spacing glyphs** in `mech:ui`: U+F801/F802/F804/F808/F810/F820/F840 move
+  −1/−2/−4/−8/−16/−32/−64 px, U+F821/F822/F824/F828/F830/F860/F880 move
+  +1…+64 px. Following a glyph with minus its advance gives several glyphs
+  one origin.
 - Text entry (party invite by name, loadout names) uses DF dialogs.
 - If your own cockpit shell blocks your first-person view, `setEntityHidden`
   hides it from the pilot only.

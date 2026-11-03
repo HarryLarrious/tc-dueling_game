@@ -1,18 +1,41 @@
 {
   "providers": [
     {
+      "type": "space",
+      "advances": {
+        "\uf801": -1,
+        "\uf802": -2,
+        "\uf804": -4,
+        "\uf808": -8,
+        "\uf810": -16,
+        "\uf820": -32,
+        "\uf840": -64,
+        "\uf821": 1,
+        "\uf822": 2,
+        "\uf824": 4,
+        "\uf828": 8,
+        "\uf830": 16,
+        "\uf860": 32,
+        "\uf880": 64
+      }
+    },
+    {
       "type": "bitmap",
       "file": "mech:font/panel.png",
       "ascent": 16,
       "height": 32,
-      "chars": [""]
+      "chars": [
+        "\ue000"
+      ]
     },
     {
       "type": "bitmap",
       "file": "mech:font/cursor.png",
       "ascent": 8,
       "height": 8,
-      "chars": [""]
+      "chars": [
+        "\ue001"
+      ]
     }
   ]
 }

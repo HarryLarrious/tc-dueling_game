@@ -39,6 +39,9 @@ layout(location = 3) out vec2 texCoord0;
 const vec4 HIDDEN = vec4(2.0, 2.0, 2.0, 1.0);
 // Distance in front of the camera that panels are drawn at (near plane 0.05).
 const float PANEL_DEPTH = 0.1;
+// Layers, added to PANEL_DEPTH: panels use their z offset in -0.03..1
+// (smaller is in front); the cursor is always in front of every panel.
+const float CURSOR_LAYER = -0.04;
 
 // Canvas position to whole window pixels.
 vec2 canvas_to_pixels(vec2 canvasPos) {
@@ -66,7 +69,7 @@ vec4 panel_position(vec2 canvasPos, float layer) {
     vec2 ndc = canvas_to_pixels(canvasPos) / ScreenSize * 2.0 - 1.0;
     vec4 up = ProjMat * vec4(0.0, 1.0, -1.0, 1.0);
     ndc.y *= -sign(up.y / up.w);  // canvas y runs down the screen
-    vec4 front = ProjMat * vec4(0.0, 0.0, -(PANEL_DEPTH + clamp(layer, -0.04, 1.0)), 1.0);
+    vec4 front = ProjMat * vec4(0.0, 0.0, -(PANEL_DEPTH + layer), 1.0);
     return vec4(ndc, front.z / front.w, 1.0);
 }
 #endif
@@ -103,10 +106,12 @@ void main() {
             marked = true;
             vec2 canvas = mech_canvas_size(ScreenSize);
             vec2 local = vec2(Position.x, -Position.y) * MECH_TEXT_PX_PER_BLOCK;
-            vec2 origin = mark.x == MECH_PANEL
-                ? mech_anchor(mark.y, canvas)
-                : mech_cursor_point(mech_look_degrees(ModelViewMat), canvas);
-            gl_Position = panel_position(origin + local, Position.z);
+            bool cursor = mark.x == MECH_CURSOR;
+            vec2 origin = cursor
+                ? mech_cursor_point(mech_look_degrees(ModelViewMat), canvas)
+                : mech_anchor(mark.y, canvas);
+            float layer = cursor ? CURSOR_LAYER : clamp(Position.z, -0.03, 1.0);
+            gl_Position = panel_position(origin + local, layer);
             color = vec4(mech_palette(mark.z), Color.a);
         }
     }

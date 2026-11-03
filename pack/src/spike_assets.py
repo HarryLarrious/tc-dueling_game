@@ -8,6 +8,7 @@ Needs Pillow and ffmpeg (with libvorbis). Writes:
   mech:font/panel, cursor       glyph bitmaps for font mech:ui
   mech:test/beep.ogg            sound event mech:test.beep
   minecraft boss_bar sprites    all transparent, so boss bars show only their text
+  minecraft hud hotbar sprites  all transparent, so the hotbar frame never shows
 The JSON files (item definition, model, font, sounds.json) are written by hand
 and live next to these in pack/assets/.
 """
@@ -102,6 +103,22 @@ def glyphs() -> None:
     save(cursor, "mech/textures/font/cursor.png")
 
 
+# Vanilla hotbar sprites and their sizes (gui/sprites/hud).
+HOTBAR_SPRITES = {
+    "hotbar": (182, 22),
+    "hotbar_selection": (24, 23),
+    "hotbar_offhand_left": (29, 24),
+    "hotbar_offhand_right": (29, 24),
+    "hotbar_attack_indicator_background": (18, 18),
+    "hotbar_attack_indicator_progress": (18, 18),
+}
+
+
+def hotbar() -> None:
+    for name, size in HOTBAR_SPRITES.items():
+        save(Image.new("RGBA", size, (0, 0, 0, 0)), f"minecraft/textures/gui/sprites/hud/{name}.png")
+
+
 def boss_bars() -> None:
     blank = Image.new("RGBA", (182, 5), (0, 0, 0, 0))
     for name in BOSS_BAR_SPRITES:
@@ -123,5 +140,6 @@ if __name__ == "__main__":
     test_part()
     glyphs()
     boss_bars()
+    hotbar()
     beep()
     print(f"wrote spike assets under {ASSETS}")
