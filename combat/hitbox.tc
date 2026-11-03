@@ -8,6 +8,7 @@
 //     augment modules)
 //   2 box from the joint along column z, centered across it (guns)
 //   3 capsule from the joint along column z, radius half of column x (legs)
+//   0 destroyed: no longer hit (combat/damage.tc)
 // Tests run against a segment p0 -> p0 + d with t in 0..1 along it: a mech's
 // bounding sphere first, then its parts. The nearest part wins.
 
@@ -148,6 +149,9 @@ function capsuleHitT(k: num, p0: vec, d: vec): num {
 
 /** Where segment p0 -> p0 + d enters hitbox k, as t in 0..1, or -1. */
 function hitboxT(k: num, p0: vec, d: vec): num {
+    if (global hbKind[k] == 0) {
+        return -1;
+    }
     if (global hbKind[k] == 3) {
         return capsuleHitT(k, p0, d);
     }
@@ -183,13 +187,14 @@ function segmentHit(p0: vec, p1: vec, skip: num): dict {
     return line best;
 }
 
-/** Parts of mech c whose center is within r of point at (splash), as part
- * indices in the mech (0 = hull). */
+/** Intact parts of mech c whose center is within r of point at (splash), as
+ * part indices in the mech (0 = hull). */
 function partsInRadius(c: num, at: vec, r: num): list {
     line out = [];
     line first = global mPartStart[c];
     repeat (line i to global mPartCount[c]) {
-        if ((hitboxCenter(line first + line i - 1) - at).len() <= r) {
+        line k = line first + line i - 1;
+        if (global hbKind[line k] != 0 && (hitboxCenter(line k) - at).len() <= r) {
             line out.append(line i - 1);
         }
     }
@@ -245,9 +250,10 @@ function hitboxCommand(parts: list) {
     }
 }
 
-/** @hit: tests a 64-block ray from the player's eye against every other
- * mech's hitboxes, stopping at solid blocks, and names the part hit. */
-function hitCommand {
+/** @hit [damage]: tests a 64-block ray from the player's eye against every
+ * other mech's hitboxes, stopping at solid blocks, and names the part hit;
+ * with a damage amount, applies it to that part through applyHit. */
+function hitCommand(parts: list) {
     line eye = default.eyeLocation;
     line p0 = vec(line eye.x, line eye.y, line eye.z);
     line stop = game.raycast(line eye, 64, blockCollision="Solid blocks");
@@ -263,6 +269,12 @@ function hitCommand {
     line at = line p0 + (line p1 - line p0) * (line hit["t"] as num);
     line dist = num.floor((line at - line p0).len() * 10) / 10;
     default.sendMessage(s"<gray>Hit mech <white>%var(c)</white> <yellow>%var(role)</yellow> at <white>%var(dist)</white> blocks.");
+    if (parts.len() >= 2) {
+        line dealt = num.floor(applyHit(line c, line hit["part"] as num, argNum(parts, 2, 0), (line p1 - line p0).setLength(0.5)));
+        line hp = num.floor(global hbHp[line k]);
+        line max = global hbHpMax[line k];
+        default.sendMessage(s"<gray>Dealt <white>%var(dealt)</white>; %var(role) at <white>%var(hp)</white>/%var(max).");
+    }
     default.displayParticleSphere(par("Flame"), loc(line at.x, line at.y, line at.z), 0.3);
     repeat (6) {
         showHitbox(line k, par("Electric Spark"));

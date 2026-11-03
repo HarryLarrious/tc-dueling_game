@@ -170,6 +170,7 @@ function spawnParts(c: num) {
     line top = line torso.y + (line sk["torsoSize"] as vec).y * 0.5;
     global mSeatUp.append(line top + 0.3 - 2.2);
     addBound(c, line top);
+    addDamageState(c);
 }
 
 /** Moves part i of mech c to world point at with matrix columns cols, and

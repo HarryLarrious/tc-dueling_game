@@ -299,6 +299,17 @@ ballistic arc (~1 s), then is removed.
 - **Layers**: armor damage reduction → part HP. There is no passive shield;
   shielding comes from the Electrostatic Dome, and the HUD shield bar shows
   dome charge.
+- **Funnel as built** (`combat/damage.tc`, MEC-36): `applyHit(mech, part,
+  amount, impulse)` scales by (1 − armor reduction), caps at the part's HP,
+  returns the damage dealt, and adds impulse ÷ mass to `mImpulse` for the
+  chassis (MEC-30) to apply. A part at 0 HP gets hitbox kind 0 (no longer
+  hit, not in splash) and runs `partDestroyed`, the hook for part-loss
+  effects (MEC-37) and destruction (MEC-38). `splashHit(at, radius, amount,
+  push)` damages intact parts by center distance, linear from full at the
+  center to 0 at the edge, pushing them away from it. Part HP (first pass):
+  hull = loadout hull HP; guns and augment modules = catalog HP; torso 0.6,
+  thigh 0.35, shin 0.3 of the class HP; the armor HP bonus applies to all.
+  Test with `@hit [damage]`, `@splash [damage] [radius]` and `@hp [mech]`.
 
 | Part destroyed | Effect |
 | --- | --- |

@@ -19,12 +19,13 @@ class skeletons of placeholder parts, `@cpu` gauge). Next: the Stage 1 spikes in
 | --- | --- |
 | `core/state.tc` | Mech and world state declarations + tunables |
 | `core/loop.tc` | Main loop: per-tick drive, push-out, draw |
-| `core/commands.tc` | `@mech @loadout @sit @clear @cpu @floor @parts @hitbox @hit @help`, the pack spike commands, boarding |
+| `core/commands.tc` | `@mech @loadout @sit @clear @cpu @floor @parts @hitbox @hit @hp @splash @help`, the pack spike commands, boarding |
 | `mech/chassis.tc` | Spawn a mech from a loadout, drive, push-out, draw |
 | `mech/skeleton.tc` | Class skeletons: placeholder part displays, right-handed part matrices, two-bone knee solve |
 | `mech/catalog.tc` | Part catalog: one row per prebuilt part (classes, guns, armor, augments, cosmetics), `@parts` |
 | `mech/loadout.tc` | Loadouts: validation, defaults, derived stats, `@loadout` |
 | `spike/cpu.tc`, `spike/pack.tc` | Stage 1 spikes: CPU test rigs (`@spike`), pack tests (`@pack @hud @menu @model @beep @fx @outline`); removed by MEC-23 |
+| `combat/damage.tc` | `applyHit` damage funnel: armor reduction, part HP, splash, impulses; `@hp @splash` |
 | `combat/hitbox.tc` | Part hitboxes (boxes and leg capsules from the drawn displays), segment and splash queries, `@hitbox @hit` |
 | `game/ ui/ maps/` | Empty until their stages |
 | `pack/` | Resource pack source (`pack.mcmeta`, `assets/`; `src/` for Blockbench files and asset generators, not shipped) |
