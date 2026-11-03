@@ -1,0 +1,202 @@
+{
+  "providers": [
+    {
+      "type": "bitmap",
+      "file": "mech:font/cockpit/walker_0.png",
+      "height": 82,
+      "ascent": 8,
+      "chars": [
+        "\ue200"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/cockpit/walker_1.png",
+      "height": 82,
+      "ascent": 8,
+      "chars": [
+        "\ue201"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/cockpit/walker_2.png",
+      "height": 90,
+      "ascent": 90,
+      "chars": [
+        "\ue202"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/cockpit/walker_3.png",
+      "height": 90,
+      "ascent": 90,
+      "chars": [
+        "\ue203"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/cockpit/sprinter_0.png",
+      "height": 82,
+      "ascent": 8,
+      "chars": [
+        "\ue204"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/cockpit/sprinter_1.png",
+      "height": 82,
+      "ascent": 8,
+      "chars": [
+        "\ue205"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/cockpit/sprinter_2.png",
+      "height": 90,
+      "ascent": 90,
+      "chars": [
+        "\ue206"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/cockpit/sprinter_3.png",
+      "height": 90,
+      "ascent": 90,
+      "chars": [
+        "\ue207"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/cockpit/crawler_0.png",
+      "height": 82,
+      "ascent": 8,
+      "chars": [
+        "\ue208"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/cockpit/crawler_1.png",
+      "height": 82,
+      "ascent": 8,
+      "chars": [
+        "\ue209"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/cockpit/crawler_2.png",
+      "height": 90,
+      "ascent": 90,
+      "chars": [
+        "\ue20a"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/cockpit/crawler_3.png",
+      "height": 90,
+      "ascent": 90,
+      "chars": [
+        "\ue20b"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/cockpit/spider_0.png",
+      "height": 82,
+      "ascent": 8,
+      "chars": [
+        "\ue20c"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/cockpit/spider_1.png",
+      "height": 82,
+      "ascent": 8,
+      "chars": [
+        "\ue20d"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/cockpit/spider_2.png",
+      "height": 90,
+      "ascent": 90,
+      "chars": [
+        "\ue20e"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/cockpit/spider_3.png",
+      "height": 90,
+      "ascent": 90,
+      "chars": [
+        "\ue20f"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/cockpit/cross_railgun.png",
+      "height": 34,
+      "ascent": 24,
+      "chars": [
+        "\ue240"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/cockpit/cross_autocannon.png",
+      "height": 34,
+      "ascent": 24,
+      "chars": [
+        "\ue241"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/cockpit/cross_lmg.png",
+      "height": 34,
+      "ascent": 24,
+      "chars": [
+        "\ue242"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/cockpit/cross_cal50.png",
+      "height": 34,
+      "ascent": 24,
+      "chars": [
+        "\ue243"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/cockpit/cross_grenade.png",
+      "height": 34,
+      "ascent": 24,
+      "chars": [
+        "\ue244"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/cockpit/cross_burst.png",
+      "height": 34,
+      "ascent": 24,
+      "chars": [
+        "\ue245"
+      ]
+    }
+  ]
+}

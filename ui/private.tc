@@ -1,0 +1,37 @@
+// Entities only their owner may see (screen-effect markers, gun reticles):
+// hidden from every other player when spawned and from players who join
+// later. Hiding from the owner too and showing again would re-send the
+// entity and can drop riding links, so the owner is never touched.
+
+/** Private entity -> owner uuid. */
+declare global privOwner: dict;
+
+/** Hides entity ent from everyone except owner, now and for later joiners. */
+function privAdd(owner: str, ent: str) {
+    global privOwner[ent] = owner;
+    select !playersByName(owner);
+    selected.setEntityHidden([ent], hidden="Enable");
+    select reset;
+}
+
+/** Forgets a private entity (after removing it). */
+function privForget(ent: str) {
+    if (global privOwner.hasKeys(ent)) {
+        global privOwner.remove(ent);
+    }
+}
+
+/** Hides every private entity from a player who just joined. */
+function privHideFrom(uuid: str) {
+    line ents: list[str] = [];
+    for (line ent, line owner of global privOwner) {
+        if (line owner as str != uuid) {
+            line ents.append(line ent as str);
+        }
+    }
+    if (line ents.len() > 0) {
+        select playersByName(uuid);
+        selected.setEntityHidden(line ents, hidden="Enable");
+        select reset;
+    }
+}

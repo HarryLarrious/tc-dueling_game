@@ -77,9 +77,7 @@ function fxEnsure(uuid: str) {
     selectedEntity.setGlowing(glowing="Enable");
     selectedEntity.ride(uuid);
     select reset;
-    select !playersByName(uuid);
-    selected.setEntityHidden([line mark], hidden="Enable");
-    select reset;
+    privAdd(uuid, line mark);
 }
 
 /** Sends the player's marker color if it changed. */
@@ -196,6 +194,7 @@ function fxDrop(uuid: str) {
         select entitiesByName(global fxMark[uuid] as str);
         selectedEntity.remove();
         select reset;
+        privForget(global fxMark[uuid] as str);
     }
     global fxMark.remove(uuid);
     global fxBits.remove(uuid);
@@ -206,18 +205,5 @@ function fxDrop(uuid: str) {
     line i = global fxFading.find(uuid);
     if (line i > 0) {
         global fxFading.remove(line i);
-    }
-}
-
-/** Hides every existing marker from a player who just joined. */
-function fxHideFrom(uuid: str) {
-    line marks: list[str] = [];
-    for (line owner, line mark of global fxMark) {
-        line marks.append(line mark);
-    }
-    if (line marks.len() > 0) {
-        select playersByName(uuid);
-        selected.setEntityHidden(line marks, hidden="Enable");
-        select reset;
     }
 }

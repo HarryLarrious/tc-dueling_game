@@ -52,6 +52,7 @@ function destroyMech(c: num) {
  * (MEC-70). Until then the pilot is just told. */
 function pilotLost(c: num, uuid: str) {
     schemaHide(uuid);
+    cockpitHide(uuid);
     fxDeathFade(uuid);
     select playersByName(uuid);
     selected.sendMessage(s"<red>Your mech was destroyed. <gray>Spawn another with <yellow>@mech</yellow>.");

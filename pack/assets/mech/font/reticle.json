@@ -1,0 +1,13 @@
+{
+  "providers": [
+    {
+      "type": "bitmap",
+      "file": "mech:font/cockpit/reticle.png",
+      "height": 26,
+      "ascent": 11,
+      "chars": [
+        "\ue260"
+      ]
+    }
+  ]
+}

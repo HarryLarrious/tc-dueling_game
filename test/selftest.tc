@@ -14,8 +14,9 @@ function selfTestOnJoin(): num {
     return 1;
 }
 
-/** Visual demo after the checks: "" none, "hud" (the demo HUD for 10 s) or
- * "fx" (each screen effect for 12 s), for screenshots. */
+/** Visual demo after the checks: "" none, "hud" (the demo HUD for 10 s),
+ * "fx" (each screen effect for 12 s) or "cockpit" (frame, crosshair and gun
+ * reticle for 15 s), for screenshots. */
 function selfTestDemo(): str {
     return "";
 }
@@ -226,6 +227,32 @@ function runSelfTest {
     checkStr("fx marker sent", global fxSent[line me] as str, "#4000FF");
     fxCockpit(line me, 0);
 
+    // Cockpit (MEC-54): frame corners and crosshair on the HUD, a reticle
+    // 40 blocks out along the guns.
+    spawnMech(defaultLoadout("walker"));
+    line cw = global mCount;
+    cockpitShow(line me, line cw);
+    line panels = global hudPanels[line me] as dict;
+    line framed = 0;
+    if (line panels.hasKeys("frame4") && line panels.hasKeys("crosshair")) {
+        line framed = 1;
+    }
+    check("cockpit frame panels", line framed, "missing", "frame1-4, crosshair");
+    line hasRet = 0;
+    if (global retOf.hasKeys(line me)) {
+        line hasRet = 1;
+    }
+    check("cockpit reticle spawned", line hasRet, "none", "one");
+    line mount = toWorld(vec(global mPos[line cw].x, global floorY, global mPos[line cw].z), global mF[line cw], vec(-0.95, 3.6, 0.4));
+    checkNum("reticle 12 ahead of the gun", (reticlePoint(line cw) - line mount).len(), 12, 0.05);
+    checkStr("railgun crosshair", crosshairGlyph("railgun")[1] as str, "\uE240");
+    cockpitHide(line me);
+    line gone = 1;
+    if (global retOf.hasKeys(line me)) {
+        line gone = 0;
+    }
+    check("cockpit hidden", line gone, "still there", "removed");
+
     hudReset(default.uuid);
     hudDemo(default.uuid);
     hudRemove(default.uuid, "schema");
@@ -263,6 +290,27 @@ function runSelfTest {
             }
             wait(240);
         }
+    } else if (selfTestDemo() == "cockpit") {
+        // A walker facing where the player looks, its cockpit on the
+        // player's HUD and its reticle out ahead.
+        hudReset(line me2);
+        spawnMech(defaultLoadout("walker"));
+        line dc = global mCount;
+        // Just behind the player, facing the same way, so its reticle floats
+        // ahead in clear view (a seated pilot looks over the hull instead).
+        // Unpiloted: a pilot would turn it to their body yaw. The reticle
+        // stays where cockpitShow put it.
+        line lookYaw = default.eyeLocation.getCoordinate(coord="Yaw");
+        line ahead = yawToVec(line lookYaw);
+        line feet = default.location;
+        testPlace(line dc, vec(line feet.x, global floorY, line feet.z) - line ahead * 4, line lookYaw);
+        cockpitShow(line me2, line dc);
+        line rp = reticlePoint(line dc);
+        line eyeAt = default.eyeLocation;
+        line dist = num.floor((line rp - vec(line eyeAt.x, line eyeAt.y, line eyeAt.z)).len());
+        default.sendMessage(s"<gold>MECHTEST FX cockpit reticle %var(rp) dist %var(dist)");
+        wait(300);
+        cockpitHide(line me2);
     } else if (selfTestDemo() == "hud") {
         wait(200);
     }

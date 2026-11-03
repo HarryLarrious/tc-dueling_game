@@ -6,7 +6,8 @@
 //     sized by window height, so GUI scale does not change them.
 //   World: panel and cursor glyphs on text displays at the camera are placed
 //     on the canvas directly, ignoring camera rotation and FOV. The cursor
-//     follows the camera look direction.
+//     follows the camera look direction. World glyphs (the gun reticle) stay
+//     where they are, drawn smooth, full bright and without fog or shadow.
 // Unmarked text renders exactly as vanilla.
 
 #if !defined(IS_GUI) && !defined(IS_SEE_THROUGH)
@@ -94,7 +95,14 @@ void main() {
         }
     }
 #else
-    if (mark.x == MECH_PANEL || mark.x == MECH_CURSOR) {
+    if (mark.x == MECH_WORLD) {
+        if (mark.w == 1) {
+            gl_Position = HIDDEN;
+        } else {
+            marked = true;
+            color = vec4(mech_palette(mark.z), Color.a);
+        }
+    } else if (mark.x == MECH_PANEL || mark.x == MECH_CURSOR) {
         // Menu displays sit at the camera (yaw 0, pitch 0, fixed billboard), so
         // Position is the glyph's offset from the display origin, in blocks.
         bool near = length(Position) < MECH_PANEL_RADIUS;

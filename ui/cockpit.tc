@@ -1,0 +1,110 @@
+// Cockpit HUD (PLAN.md, UI and HUD; MEC-54): the class's holographic frame
+// at the four screen corners, the main gun's crosshair at the screen center
+// (glyphs from ui/cockpitfont.tc) and the gun reticle: a text display out
+// along where the guns point, seen only by the pilot, so the player's own FOV
+// puts it in the right screen spot. Each tick a ray along the guns puts it
+// just in front of the first solid block within reticleDistance() (so it
+// also shows where shots would hit terrain), scaled with its distance so it
+// keeps one screen size. It is not see-through: marked glyphs do not render
+// in the see-through text pass on every client, and occlusion-culling mods
+// (EntityCulling) skip entities behind blocks anyway. The guns lag the
+// camera (the hull turns toward the look direction at the class rate), so
+// the reticle drifts off the crosshair while turning.
+
+/** Gun reticle display per pilot (uuid -> entity uuid). */
+declare global retOf: dict;
+
+/** Distance ahead of the gun mount that the reticle floats at, blocks. */
+function reticleDistance(): num {
+    return 12;
+}
+
+/** Where mech c's guns point (unit vector). The hull facing until torso
+ * traverse (MEC-24) aims the guns on their own. */
+function gunAim(c: num): vec {
+    return global mF[c];
+}
+
+/** World point of mech c's main gun mount. */
+function gunMount(c: num): vec {
+    line pos = global mPos[c];
+    line base = vec(line pos.x, global floorY, line pos.z);
+    return toWorld(line base, global mF[c], classSkeleton(global mClass[c])["mainMount"] as vec);
+}
+
+/** World point of mech c's gun reticle with no terrain in the way. */
+function reticlePoint(c: num): vec {
+    return gunMount(c) + gunAim(c) * reticleDistance();
+}
+
+/** Shows mech c's cockpit (frame, crosshair, reticle) to player uuid. */
+function cockpitShow(uuid: str, c: num) {
+    line frames = frameGlyphs(global mClass[c]);
+    line anchors = [0, 2, 6, 8];
+    repeat (line j to 4) {
+        line g = line frames[line j] as list;
+        hudSet(uuid, "frame%var(j)", line anchors[line j] as num, 2,
+            [hudGlyph(line g[1] as str, "mech:cockpit", line g[3] as num, 3, line g[2] as num)]);
+    }
+    line cross = crosshairGlyph((global mLoadout[c])["main"] as str);
+    hudSet(uuid, "crosshair", 4, 2, [hudGlyph(line cross[1] as str, "mech:cockpit", line cross[3] as num, 3, line cross[2] as num)]);
+    hudFlush(uuid);
+
+    if (!global retOf.hasKeys(uuid)) {
+        line at = reticlePoint(c);
+        line color = uiColor(240, 0, 3);
+        line ch = reticleChar();
+        game.spawnTextDisplay(loc(line at.x, line at.y, line at.z), miniMessage("<font:mech:reticle><color:%var(color)>%var(ch)</color></font>"));
+        line ret = lastEntity.uuid;
+        global retOf[uuid] = line ret;
+        select entitiesByName(line ret);
+        selectedEntity.setDisplayBillboard(type="Center");
+        selectedEntity.setTextDisplayBackground("#000000", 0);
+        selectedEntity.setTextDisplayTextShadow(textShadow="Disable");
+        // About 4 degrees tall at any distance (reticleTick rescales it).
+        selectedEntity.setDisplayScale(1.5, 1.5, 1.5);
+        selectedEntity.setDisplayTeleportDuration(1);
+        selectedEntity.setDisplayCullingSize(0, 0);
+        // The default view range (64 blocks times the client's entity
+        // distance setting) can be shorter than the reticle distance.
+        selectedEntity.setDisplayViewRange(128);
+        select reset;
+        privAdd(uuid, line ret);
+    }
+}
+
+/** Takes the cockpit off player uuid's HUD and removes their reticle. */
+function cockpitHide(uuid: str) {
+    repeat (line j to 4) {
+        hudRemove(uuid, "frame%var(j)");
+    }
+    hudRemove(uuid, "crosshair");
+    hudFlush(uuid);
+    if (global retOf.hasKeys(uuid)) {
+        line ret = global retOf[uuid] as str;
+        select entitiesByName(line ret);
+        selectedEntity.remove();
+        select reset;
+        privForget(line ret);
+        global retOf.remove(uuid);
+    }
+}
+
+/** Moves mech c's pilot's reticle to where the guns point (each tick):
+ * just short of the first solid block, scaled to keep its screen size. */
+function reticleTick(c: num) {
+    line pilot = global mDriver[c];
+    if (line pilot == "" || !global retOf.hasKeys(line pilot)) {
+        return;
+    }
+    line mount = gunMount(c);
+    line aim = gunAim(c);
+    line stop = game.raycast(loc(line mount.x, line mount.y, line mount.z).setDirection(line aim), reticleDistance(), blockCollision="Solid blocks");
+    line d = num.max((vec(line stop.x, line stop.y, line stop.z) - line mount).len() - 0.3, 1);
+    line at = line mount + line aim * line d;
+    line scale = 1.5 * line d / reticleDistance();
+    select entitiesByName(global retOf[line pilot] as str);
+    selectedEntity.teleport(loc(line at.x, line at.y, line at.z));
+    selectedEntity.setDisplayScale(line scale, line scale, line scale);
+    select reset;
+}

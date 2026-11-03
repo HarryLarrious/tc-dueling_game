@@ -2,16 +2,18 @@
 #define MECH_UI_GLSL
 
 // Marked UI glyphs carry their data in the text color (PLAN.md, UI and HUD):
-//   red   = kind: 252 HUD glyph (boss bar title), 248 screen-locked panel, 244 cursor
+//   red   = kind: 252 HUD glyph (boss bar title), 248 screen-locked panel, 244 cursor,
+//           240 world glyph (stays in the world; smooth, full bright, no fog)
 //   green = 128 + 4 * a   HUD: anchor * 3 + bar slot; panel: anchor; cursor: 0
 //   blue  = 128 + 4 * c   palette index
 // a and c are 0..30. Vanilla draws a text shadow in color * 0.25 (floored), so a
-// shadow copy reads red 63 / 62 / 61, green 32 + a, blue 32 + c.
+// shadow copy reads red 63 / 62 / 61 / 60, green 32 + a, blue 32 + c.
 
 const int MECH_NONE = 0;
 const int MECH_HUD = 1;
 const int MECH_PANEL = 2;
 const int MECH_CURSOR = 3;
+const int MECH_WORLD = 4;
 
 // Virtual canvas: always 360 units tall, as wide as the window's aspect.
 // One canvas unit is one font pixel.
@@ -26,7 +28,8 @@ const float MECH_PANEL_RADIUS = 12.0;
 // Returns (kind, a, c, isShadow); kind MECH_NONE for unmarked text.
 ivec4 mech_decode(vec4 color) {
     ivec3 rgb = ivec3(round(color.rgb * 255.0));
-    int kind = rgb.r == 252 ? MECH_HUD : rgb.r == 248 ? MECH_PANEL : rgb.r == 244 ? MECH_CURSOR : MECH_NONE;
+    int kind = rgb.r == 252 ? MECH_HUD : rgb.r == 248 ? MECH_PANEL : rgb.r == 244 ? MECH_CURSOR
+        : rgb.r == 240 ? MECH_WORLD : MECH_NONE;
     if (kind != MECH_NONE) {
         ivec2 d = rgb.gb - 128;
         if (d.x >= 0 && d.y >= 0 && d.x <= 120 && d.y <= 120 && d.x % 4 == 0 && d.y % 4 == 0) {
@@ -34,7 +37,8 @@ ivec4 mech_decode(vec4 color) {
         }
         return ivec4(MECH_NONE);
     }
-    kind = rgb.r == 63 ? MECH_HUD : rgb.r == 62 ? MECH_PANEL : rgb.r == 61 ? MECH_CURSOR : MECH_NONE;
+    kind = rgb.r == 63 ? MECH_HUD : rgb.r == 62 ? MECH_PANEL : rgb.r == 61 ? MECH_CURSOR
+        : rgb.r == 60 ? MECH_WORLD : MECH_NONE;
     if (kind != MECH_NONE) {
         ivec2 d = rgb.gb - 32;
         if (d.x >= 0 && d.y >= 0 && d.x <= 30 && d.y <= 30) {

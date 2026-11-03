@@ -476,7 +476,7 @@ translucent panels and a class cockpit frame (cockpit reference).
 
   | Channel | Value |
   | --- | --- |
-  | red | kind: `252` HUD glyph in a boss bar title, `248` screen-locked panel, `244` cursor |
+  | red | kind: `252` HUD glyph in a boss bar title, `248` screen-locked panel, `244` cursor, `240` world glyph (stays in the world: smooth, full bright, no fog; the gun reticle) |
   | green | `128 + 4·a`; HUD: `a = anchor·3 + bar slot` (slot 0–2); panel: `a = anchor`; cursor: `a = 0` |
   | blue | `128 + 4·c`; `c` = palette index (0 white, 1 grey, 2 dark grey, 3 cyan, 4 amber, 5 red, 6 green) |
 
@@ -546,6 +546,20 @@ translucent panels and a class cockpit frame (cockpit reference).
   150 canvas units below the anchor into its ascent; x comes from the table.
   Shown on `sitMech`, refreshed by `applyHit`, hidden on leaving or
   destruction.
+- **Cockpit as built** (`ui/cockpit.tc`, MEC-54): per-class holographic frame
+  corners (anchors 0, 2, 6, 8) and the main gun's crosshair (anchor 4), all
+  in bar slot 2, generated with their table `ui/cockpitfont.tc` by
+  `pack/src/cockpit_assets.py`. Bottom corners sit 8 units low (a bitmap
+  glyph rises at most its own height), so their art keeps that space empty.
+  The gun reticle is a text display only the pilot sees (`ui/private.tc`),
+  moved each tick to where the guns point: a ray along `gunAim` (the hull
+  facing until MEC-24 adds torso traverse) stops it 0.3 short of the first
+  solid block within 12 blocks, and it is rescaled to keep one screen size.
+  It uses marker kind 240 (world glyph: smooth, full bright, no fog). Found
+  in game: marked glyphs do not render in the see-through text pass on this
+  client (Iris, ImmediatelyFast, EntityCulling installed) and EntityCulling
+  skips displays behind blocks, so the reticle is not see-through and stays
+  close.
 - **Menus in a menu room**: the player rides a fixed seat. Panels, a backdrop
   and 3D previews (party mechs, customizer mech, shop viewer) are text and
   item displays in front of the seat. The shader locks them to the screen

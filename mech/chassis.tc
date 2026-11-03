@@ -152,6 +152,7 @@ function seatPoint(c: num): vec {
 /** Draws mech c for this tick: skeleton parts + seat. */
 function drawMech(c: num) {
     drawParts(c);
+    reticleTick(c);
     line h = seatPoint(c);
     select entitiesByName(global mSeat[line c]);
     selectedEntity.teleport(loc(line h.x, line h.y, line h.z));
