@@ -15,6 +15,7 @@ declare global "menuOn %uuid": num;
 declare global "menuSeat %uuid": str;
 declare global "menuPanel %uuid": str;
 declare global "menuCursor %uuid": str;
+declare global "menuLabel %uuid": str;
 /** 1 while the server's hover test finds the cursor on the panel. */
 declare global "menuHover %uuid": num;
 /** The player's post-effect marker display (@fx). */
@@ -43,6 +44,11 @@ function uiColor(kind: num, a: num, c: num): str {
 }
 
 /** One mech:ui glyph in a marker color, as styled text. */
+/** UI text in one of the TTF fonts (text_s, text, text_l) in a marker color. */
+function uiText(font: str, text: str, color: str): txt {
+    return miniMessage("<font:mech:%var(font)><%var(color)>%var(text)");
+}
+
 function uiGlyph(glyph: str, color: str): txt {
     return miniMessage("<font:mech:ui><%var(color)>%var(glyph)");
 }
@@ -176,6 +182,14 @@ function hudCommand(parts: list) {
     if (line sub == "off") {
         return;
     }
+    if (line sub == "text") {
+        // A HUD readout in the three UI font sizes, cyan, top center.
+        line color = uiColor(252, 1 * 3, 3);
+        line title = "<%var(color)><font:mech:text_l>1240 <font:mech:text>AMMO 32/40 <font:mech:text_s>RAILGUN READY";
+        default.setBossBar(miniMessage(line title), 1, 1);
+        default.sendMessage(s"<gray>HUD text in mech:text_l, mech:text and mech:text_s. It must look smooth at every GUI scale and resolution.");
+        return;
+    }
     if (line sub == "grid") {
         // One cursor glyph per anchor. Each is followed by -7 px of space
         // (its advance), so all nine share one origin and land exactly on
@@ -224,6 +238,19 @@ function menuCommand {
     game.spawnTextDisplay(line at, uiGlyph("", uiColor(244, 0, 0)));
     global "menuCursor %uuid" = lastEntity.uuid;
     menuDisplay(lastEntity.uuid);
+
+    // A label inside the panel, one layer in front of it.
+    game.spawnTextDisplay(line at, uiText("text", "MENU TEST", uiColor(248, 4, 3)));
+    global "menuLabel %uuid" = lastEntity.uuid;
+    menuDisplay(lastEntity.uuid);
+    select entitiesByName(global "menuLabel %uuid");
+    selectedEntity.setDisplayTransformationMatrix([
+        1, 0, 0, 0,
+        0, 1, 0, 0,
+        0, 0, 1, -0.01,
+        0, 0, 0, 1
+    ]);
+    select reset;
     // Put the cursor's tip on the look point: the tip sits at canvas
     // -2.75, -13.75 from the display origin (pack/src/spike_assets.py prints
     // it), so move +2.75, +13.75 canvas units = 0.06875, -0.34375 blocks.
@@ -252,6 +279,9 @@ function menuClose {
     selectedEntity.remove();
     select reset;
     select entitiesByName(global "menuCursor %uuid");
+    selectedEntity.remove();
+    select reset;
+    select entitiesByName(global "menuLabel %uuid");
     selectedEntity.remove();
     select reset;
     default.rideEntity();

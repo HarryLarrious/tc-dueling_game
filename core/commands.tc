@@ -162,7 +162,7 @@ function mechHelp {
     default.sendMessage(s"<yellow>@spike</yellow> <gray>CPU test rigs and projectiles (see @spike for options)");
     default.sendMessage(s"<gold><bold>Pack spike</bold>");
     default.sendMessage(s"<yellow>@pack [url|status|clear]</yellow> <gray>send the pack, check it, or remove spike entities");
-    default.sendMessage(s"<yellow>@hud [anchor] [palette] | grid | off</yellow> <gray>marked glyph on boss bar 1");
+    default.sendMessage(s"<yellow>@hud [anchor] [palette] | grid | text | off</yellow> <gray>marked glyph or UI text on boss bar 1");
     default.sendMessage(s"<yellow>@menu</yellow> <gray>seated menu: panel, shader cursor, server hover readout");
     default.sendMessage(s"<yellow>@model [party]</yellow> <gray>test part swinging about its joint");
     default.sendMessage(s"<yellow>@beep</yellow> <gray>custom sound");
