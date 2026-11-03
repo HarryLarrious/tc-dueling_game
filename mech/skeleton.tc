@@ -1,0 +1,215 @@
+// Class skeletons (PLAN.md, Mech classes): the fixed parts of each class and
+// where they sit, drawn with placeholder models. Every part is one item
+// display: mech:skel_box (a unit box centered on its joint) for hull and
+// torso, mech:skel_segment (a unit box from its joint along +z) for guns and
+// leg segments; the display matrix scales and points it. Item displays turn
+// their model 180 degrees about y before the matrix, so the segment model is
+// built along model -z to come out along +z. Legs stand in a rest
+// pose until gait and IK (MEC-27/28) move the feet.
+//
+// Local offsets are (left, up, forward) from the mech's ground point, in
+// blocks. Every matrix is right-handed (left = up x forward), so models are
+// never mirrored or drawn inside out.
+
+/** All part displays, mech by mech, in order: hull, torso, main gun,
+ * secondary gun, then thigh and shin for each leg. Mech c owns
+ * mPartEnt[mPartStart[c] .. mPartStart[c] + mPartCount[c] - 1]. */
+declare global mPartEnt: list[str];
+declare global mPartStart: list[num];
+declare global mPartCount: list[num];
+/** Pose each mech was last drawn at; unchanged mechs skip their writes. */
+declare global mDrawnPos: list[vec];
+declare global mDrawnYaw: list[num];
+/** Seat height above the ground point: the pilot's eye sits just above the
+ * torso top (eye = seat + 0.6 interaction height + 1.6 eye height). */
+declare global mSeatUp: list[num];
+
+/** Skeleton of a class: ride (hull center height), torso offset and size,
+ * main and secondary gun mounts, hips and rest feet (one per leg), thigh and
+ * shin lengths, leg width, knee pole (local; knees bend toward it) and part
+ * colors. Sprinters are slimmer walkers: same layout, thinner parts. */
+function classSkeleton(cls: str): dict {
+    if (cls == "sprinter") {
+        return {
+            ride: 2.1, torso: vec(0, 3.0, -0.1), torsoSize: vec(1.2, 0.5, 1.4),
+            mainMount: vec(-0.75, 3.0, 0.3), secMount: vec(0.75, 3.0, 0.3),
+            hips: [vec(0.55, 1.55, 0), vec(-0.55, 1.55, 0)], feet: [vec(0.7, 0, 0.2), vec(-0.7, 0, 0.2)],
+            thigh: 1.2, shin: 1.3, legW: 0.22, pole: vec(0, 0, -1),
+            colors: [0xC9CED6, 0xA9B0BA, 0x4A5058, 0x7C838D]
+        };
+    }
+    if (cls == "crawler") {
+        return {
+            ride: 1.4, torso: vec(0, 2.3, 0), torsoSize: vec(1.8, 0.6, 1.8),
+            mainMount: vec(0, 2.4, 0.6), secMount: vec(0.95, 2.3, 0),
+            hips: [vec(1.4, 1.1, 1.1), vec(-1.4, 1.1, 1.1), vec(1.4, 1.1, 0), vec(-1.4, 1.1, 0), vec(1.4, 1.1, -1.1), vec(-1.4, 1.1, -1.1)],
+            feet: [vec(3.0, 0, 1.54), vec(-3.0, 0, 1.54), vec(3.0, 0, 0), vec(-3.0, 0, 0), vec(3.0, 0, -1.54), vec(-3.0, 0, -1.54)],
+            thigh: 1.6, shin: 1.9, legW: 0.32, pole: vec(0, 1, 0),
+            colors: [0x7E8466, 0x666B52, 0x3A3D33, 0x55594A]
+        };
+    }
+    if (cls == "spider") {
+        return {
+            ride: 1.0, torso: vec(0, 1.6, 0), torsoSize: vec(0.8, 0.4, 0.8),
+            mainMount: vec(0, 1.7, 0.3), secMount: vec(0.45, 1.6, 0.1),
+            hips: [vec(0.6, 0.8, 0.6), vec(-0.6, 0.8, 0.6), vec(0.6, 0.8, -0.6), vec(-0.6, 0.8, -0.6)],
+            feet: [vec(1.8, 0, 1.6), vec(-1.8, 0, 1.6), vec(1.8, 0, -1.6), vec(-1.8, 0, -1.6)],
+            thigh: 1.1, shin: 1.4, legW: 0.2, pole: vec(0, 1, 0),
+            colors: [0x4B4F57, 0x3B3E45, 0x2C2E33, 0x60656E]
+        };
+    }
+    // Walker: tall biped, reverse knees (bend backward).
+    return {
+        ride: 2.6, torso: vec(0, 3.7, -0.1), torsoSize: vec(1.5, 0.6, 1.7),
+        mainMount: vec(-0.95, 3.6, 0.4), secMount: vec(0.95, 3.6, 0.4),
+        hips: [vec(0.75, 1.9, 0), vec(-0.75, 1.9, 0)], feet: [vec(0.9, 0, 0.25), vec(-0.9, 0, 0.25)],
+        thigh: 1.4, shin: 1.6, legW: 0.35, pole: vec(0, 0, -1),
+        colors: [0x8A9099, 0x6F757E, 0x3C4148, 0x585E66]
+    };
+}
+
+/** The mech's left axis for facing f: up x f, so (left, up, f) is right-handed. */
+function leftOf(f: vec): vec {
+    return vec(f.z, 0, 0 - f.x);
+}
+
+/** World point of a local (left, up, forward) offset from ground point base. */
+function toWorld(base: vec, f: vec, o: vec): vec {
+    return base + leftOf(f) * o.x + vec(0, o.y, 0) + f * o.z;
+}
+
+/** Row-major display matrix from three columns, no translation (the display
+ * is teleported to the part's joint). */
+function columnsMatrix(c0: vec, c1: vec, c2: vec): list {
+    return [
+        c0.x, c1.x, c2.x, 0,
+        c0.y, c1.y, c2.y, 0,
+        c0.z, c1.z, c2.z, 0,
+        0, 0, 0, 1
+    ];
+}
+
+/** Matrix for a mech:skel_box of size (side, up, forward) facing f. */
+function boxPartMatrix(f: vec, size: vec): list {
+    return columnsMatrix(leftOf(f) * size.x, vec(0, size.y, 0), f * size.z);
+}
+
+/** Matrix for a mech:skel_segment of width w from its joint to joint + d.
+ * side x (dn x side) = dn, so the columns are right-handed. */
+function segPartMatrix(d: vec, w: num): list {
+    line dn = d.setLength(1);
+    line side = line dn.cross(vec(0, 1, 0));
+    if (line side.len() < 0.01) {
+        line side = vec(1, 0, 0);
+    }
+    line side = line side.setLength(1);
+    return columnsMatrix(line side * w, line dn.cross(line side) * w, d);
+}
+
+/** Two-bone IK: the knee for a thigh l1 from hip and a shin l2 to foot,
+ * bending toward pole (world direction). A foot out of reach straightens
+ * the leg toward it. Gait (MEC-27/28) reuses this with moving feet. */
+function kneeOf(hip: vec, foot: vec, l1: num, l2: num, pole: vec): vec {
+    line hf = foot - hip;
+    line d = num.clamp(line hf.len(), num.abs(l1 - l2) + 0.01, l1 + l2 - 0.01);
+    line dir = line hf.setLength(1);
+    // Law of cosines: distance along hip->foot to the knee's foot point.
+    line a = (l1 * l1 - l2 * l2 + line d * line d) / (2 * line d);
+    line h = num.root(num.max(l1 * l1 - line a * line a, 0));
+    line bend = pole - line dir * pole.dot(line dir);
+    if (line bend.len() < 0.01) {
+        line bend = vec(0, 1, 0);
+    }
+    return hip + line dir * line a + line bend.setLength(1) * line h;
+}
+
+/** Spawns one placeholder part display with a model and tint, and records it. */
+function spawnPart(at: vec, model: str, color: num) {
+    line part = item("stone").setModel(model).setModelDataNumbers(color, type="Colors");
+    game.spawnItemDisplay(loc(at.x, at.y, at.z), line part);
+    lastEntity.setDisplayTeleportDuration(1);
+    global mPartEnt.append(lastEntity.uuid);
+}
+
+/** Spawns mech c's part displays (it must already have mPos and mClass). */
+function spawnParts(c: num) {
+    line sk = classSkeleton(global mClass[c]);
+    line colors = line sk["colors"] as list;
+    line at = global mPos[c];
+    global mPartStart.append(global mPartEnt.len() + 1);
+    spawnPart(at, "mech:skel_box", line colors[1] as num);
+    spawnPart(at, "mech:skel_box", line colors[2] as num);
+    spawnPart(at, "mech:skel_segment", line colors[3] as num);
+    spawnPart(at, "mech:skel_segment", line colors[3] as num);
+    repeat ((line sk["hips"] as list).len() * 2) {
+        spawnPart(at, "mech:skel_segment", line colors[4] as num);
+    }
+    global mPartCount.append(global mPartEnt.len() + 1 - global mPartStart[c]);
+    global mDrawnPos.append(vec(0, -9999, 0));
+    global mDrawnYaw.append(0);
+    line torso = line sk["torso"] as vec;
+    global mSeatUp.append(line torso.y + (line sk["torsoSize"] as vec).y * 0.5 + 0.3 - 2.2);
+}
+
+/** Moves part i of mech c to world point at with matrix m. */
+function placePart(c: num, i: num, at: vec, m: list) {
+    select entitiesByName(global mPartEnt[global mPartStart[c] + i]);
+    selectedEntity.teleport(loc(at.x, at.y, at.z));
+    selectedEntity.setDisplayTransformationMatrix(m);
+    selectedEntity.setDisplayInterpolation(1, 0);
+    select reset;
+}
+
+/** Horizontal reach of a class: the farthest rest foot or hull corner, for
+ * the mech's bounding radius. */
+function skeletonReach(cls: str, hull: vec): num {
+    line reach = num.root(hull.x * hull.x + hull.z * hull.z) * 0.5;
+    for (line foot of classSkeleton(cls)["feet"] as list) {
+        line fv = line foot as vec;
+        line reach = num.max(line reach, num.root(line fv.x * line fv.x + line fv.z * line fv.z));
+    }
+    return line reach;
+}
+
+/** Draws every part of mech c in its rest pose, unless it has not moved or
+ * turned since it was last drawn. Parts hang off the ground point under the
+ * chassis position. */
+function drawParts(c: num) {
+    line pos = global mPos[c];
+    line base = vec(line pos.x, global floorY, line pos.z);
+    line yaw = global mYaw[c];
+    if ((line base - global mDrawnPos[c]).len() < 0.001 && num.abs(line yaw - global mDrawnYaw[c]) < 0.001) {
+        return;
+    }
+    global mDrawnPos[c] = line base;
+    global mDrawnYaw[c] = line yaw;
+
+    line f = global mF[c];
+    line sk = classSkeleton(global mClass[c]);
+    line lo = global mLoadout[c];
+    line hull = global mSize[c];
+    // mSize is (forward, up, side); boxes take (side, up, forward).
+    placePart(c, 0, toWorld(line base, line f, vec(0, line sk["ride"] as num, 0)), boxPartMatrix(line f, vec(line hull.z, line hull.y, line hull.x)));
+    placePart(c, 1, toWorld(line base, line f, line sk["torso"] as vec), boxPartMatrix(line f, line sk["torsoSize"] as vec));
+
+    // Guns point along the hull until torso traverse (MEC-24) aims them.
+    line mainBox = partRow(line lo["main"] as str)["size"] as vec;
+    line secBox = partRow(line lo["secondary"] as str)["size"] as vec;
+    placePart(c, 2, toWorld(line base, line f, line sk["mainMount"] as vec), segPartMatrix(line f * line mainBox.z, line mainBox.x));
+    placePart(c, 3, toWorld(line base, line f, line sk["secMount"] as vec), segPartMatrix(line f * line secBox.z, line secBox.x));
+
+    line hips = line sk["hips"] as list;
+    line feet = line sk["feet"] as list;
+    line thigh = line sk["thigh"] as num;
+    line shin = line sk["shin"] as num;
+    line w = line sk["legW"] as num;
+    line pl = line sk["pole"] as vec;
+    line pole = leftOf(line f) * line pl.x + vec(0, line pl.y, 0) + line f * line pl.z;
+    repeat (line i to line hips.len()) {
+        line hip = toWorld(line base, line f, line hips[line i] as vec);
+        line foot = toWorld(line base, line f, line feet[line i] as vec);
+        line knee = kneeOf(line hip, line foot, line thigh, line shin, line pole);
+        placePart(c, 2 + line i * 2, line hip, segPartMatrix(line knee - line hip, line w));
+        placePart(c, 3 + line i * 2, line knee, segPartMatrix(line foot - line knee, line w * 0.8));
+    }
+}

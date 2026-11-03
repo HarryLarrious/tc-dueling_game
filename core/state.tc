@@ -17,8 +17,6 @@ declare global mRad: list[num];
 declare global mSeat: list[str];
 /** UUID of the player driving, "" = unpiloted. */
 declare global mDriver: list[str];
-/** UUID of the placeholder hull display until pack models replace it. */
-declare global mBody: list[str];
 /** Loadout (mech/loadout.tc) each mech was spawned with, and its class. */
 declare global mLoadout: list[dict];
 declare global mClass: list[str];
@@ -42,7 +40,6 @@ declare global initialized: num;
 
 /** Tunables (set by resetConfig). */
 declare global mechHover: num;
-declare global seatHover: num;
 declare global mechPower: num;
 declare global turnEase: num;
 declare global idleEase: num;

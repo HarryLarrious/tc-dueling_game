@@ -95,7 +95,7 @@ face is a whole number.)
 | Profile | Tall | Medium, slim | Low and wide | Smallest |
 | Signature | Fires over cover, fast torso twist | Speed, jumps | Keeps moving after leg loss | Wall climbing, ambush |
 | Leg loss | 1 leg lost = immobile, still shoots | 1 leg lost = immobile | Slower per leg; 3 left = immobile | Below 4 can't climb; 2 left = immobile |
-| Displays (est.) | ~10 | ~10 | ~16 | ~11 |
+| Displays (placeholder now / final est.) | 8 / ~10 | 8 / ~10 | 16 / ~16 | 12 / ~11 |
 | Art refs | `walkers/` + the in-game build (`Pasted image.png`) | Walker art, lighter | `crawlers/` | `spiders/` (86 Juggernaut) |
 
 **Sprinters are lighter walkers.** Same skeleton, gait code and IK as the
@@ -662,7 +662,12 @@ the marker carries the choice.
   (any angles, applied X then Y then Z), or the old single `axis` + `angle`.
   Large parts scale up through the display matrix. Each part's joint (hip,
   knee, shoulder, turret ring) sits at the model center (8, 8, 8), the display
-  origin, so matrices rotate parts about their joint. One model per part;
+  origin, so matrices rotate parts about their joint. An item display turns
+  its model 180° about y before the display matrix (`DisplayRenderer`), so a
+  part that extends from its joint along the mech's forward axis is modeled
+  along model −z. Display matrices are right-handed (columns left, up,
+  forward with left = up × forward): a mirrored matrix draws the model
+  inside out. One model per part;
   damaged variants and skins select on custom model data strings, party color
   tints from custom model data colors.
 - **Glow.** An element with `"light_emission": 15` (0–15) renders at full
@@ -678,6 +683,16 @@ the marker carries the choice.
 - Item model definitions live in `assets/mech/items/<part>.json`
   (`setModel(item, "mech:<part>")`); party color is a
   `minecraft:custom_model_data` tint (index 0) on faces with `tintindex: 0`.
+- **Placeholders (MEC-32).** Until the art pass every part is one of two
+  tinted box models: `mech:skel_box` (a unit box centered on its joint: hull,
+  torso) and `mech:skel_segment` (a unit box from its joint along forward:
+  guns, thighs, shins), scaled and pointed by the display matrix. Each class's
+  skeleton (`mech/skeleton.tc`, `classSkeleton`) lists ride height, torso,
+  gun mounts, hips, rest feet, bone lengths and the knee pole (backward for
+  the reverse-knee bipeds, up for crawlers and spiders). Display order per
+  mech: hull, torso, main gun, secondary gun, then thigh and shin per leg.
+  Legs hold a rest pose solved by `kneeOf` (two-bone IK) until gait moves
+  the feet.
 - Placeholder box models first, art pass later. The in-game walker build is
   the target look for the walker models.
 
