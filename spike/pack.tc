@@ -2,8 +2,6 @@
 // (MEC-16..20) on the plot. Record the results in PLAN.md (Stage 1, item 4);
 // delete with the rest of spike/ (MEC-23).
 
-/** URL @pack sends; @pack <url> replaces it. */
-declare global packUrl: str;
 /** Every entity the pack spike spawned, for @pack clear. */
 declare global packEnts: list[str];
 /** Entities only their owner sees: hidden from everyone else, late joiners too. */
@@ -82,7 +80,8 @@ function menuDisplay(uuid: str) {
 
 // ---------------------------------------------------------------- @pack
 
-/** @pack [url | status | clear]: send the pack, report, or remove spike entities. */
+/** @pack [url | status | clear]: send the built-in pack (or a one-off url),
+ * report, or remove spike entities. */
 function packCommand(parts: list) {
     line sub = "";
     if (parts.len() >= 2) {
@@ -100,15 +99,17 @@ function packCommand(parts: list) {
         }
         return;
     }
+    line url = defaultPackUrl();
     if (line sub != "") {
-        global packUrl = line sub;
+        line url = line sub;
     }
-    if (global packUrl == "") {
-        global packUrl = defaultPackUrl();
-    }
-    line url = global packUrl;
-    default.sendResourcePack(line url);
-    default.sendMessage(s"<gray>Sent pack <white>%var(url)</white>");
+    sendPack(line url);
+}
+
+/** Sends a pack to the player. */
+function sendPack(url: str) {
+    default.sendResourcePack(url);
+    default.sendMessage(s"<gray>Sent the resource pack.");
 }
 
 /** Removes every spike entity and the player's boss bars and menu state. */
@@ -135,11 +136,12 @@ playerevent resourcePackDecline {
     default.sendMessage(s"<red>Pack declined.</red> <gray>The game needs it for models and UI; <yellow>@pack</yellow> to try again.");
 }
 
-/** On join: hide every private spike entity from the new player. */
+/** On join: send the pack and hide every private spike entity from the new player. */
 function packJoin {
     if (global packPrivate.len() > 0) {
         default.setEntityHidden(global packPrivate, hidden="Enable");
     }
+    sendPack(defaultPackUrl());
 }
 
 // ---------------------------------------------------------------- @hud
