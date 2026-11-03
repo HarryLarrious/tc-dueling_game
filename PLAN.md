@@ -399,7 +399,9 @@ The player always holds one control item:
   reaches far blocks for pings.
 
 Shift normally dismounts a rider; the `dismount` event is cancelled so the
-pilot stays seated. Verify every row on an interaction-entity seat in the
+pilot stays seated. Pilots never leave their mech (owner, 2026-11-03,
+MEC-95): the seat goes only when the mech is destroyed or cleared
+(`core/commands.tc`, `playerevent dismount`). Verify every row on an interaction-entity seat in the
 controls spike.
 
 ## UI and HUD
@@ -1054,7 +1056,8 @@ low HP, visor; the HUD stays sharp over all of them.
    Decided (owner, 2026-11-03): shift fires the secondary, like left click
    fires the main gun.
 7. What is the medium main gun? [autocannon]
-8. Do pilots ever leave the mech mid-match, Titanfall-style? [no]
+8. ~~Do pilots ever leave the mech mid-match, Titanfall-style?~~ Decided
+   (owner, 2026-11-03): no dismounting at all.
 9. Who makes the final models and sounds? [placeholder boxes and stock sounds
    first; final art in Blockbench]
 10. Replace `minecraft:default` (all text on the plot: chat, signs, DF

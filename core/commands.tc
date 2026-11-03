@@ -123,17 +123,19 @@ function sitMech(c: num) {
         default.sendMessage(s"<gray>Mech <white>%var(c)</white> does not exist or is destroyed.");
         return;
     }
-    leaveMech();
-    if (global mDriver[line c] != "") {
+    if (global mDriver[line c] != "" && global mDriver[line c] != default.uuid) {
         default.sendMessage(s"<gray>Someone else is piloting mech <white>%var(c)</white>.");
         return;
     }
-    global mDriver[line c] = default.uuid;
+    leaveMech();
+    // Ride first: leaving the old seat fires dismount, which is cancelled
+    // only while the player drives a mech.
     default.rideEntity(global mSeat[line c]);
+    global mDriver[line c] = default.uuid;
     schemaUpdate(line c);
     fxCockpit(default.uuid, 1);
     cockpitShow(default.uuid, line c);
-    default.sendMessage(s"<gray>Piloting mech <white>%var(c)</white>: W/S drive, A/D strafe, sneak to get out.");
+    default.sendMessage(s"<gray>Piloting mech <white>%var(c)</white>: W/S drive, A/D strafe. Pilots stay in their mech until it is destroyed.");
 }
 
 /** Parse parts[index] as a number, or fallback if missing or bad. */
@@ -225,7 +227,7 @@ function mechHelp {
     default.sendMessage(s"<yellow>@mech [class]</yellow> <gray>spawn your loadout (or a class's default) 6 blocks ahead");
     default.sendMessage(s"<yellow>@loadout [class|main|secondary|armor|aug1|aug2|cosmetic <id> | reset]</yellow> <gray>show or edit your loadout");
     default.sendMessage(s"<yellow>@sit [mech]</yellow> <gray>board that mech, or the nearest one");
-    default.sendMessage(s"<yellow>W/S</yellow> <gray>drive forward/back, <yellow>A/D</yellow> strafe, sneak to get out");
+    default.sendMessage(s"<yellow>W/S</yellow> <gray>drive forward/back, <yellow>A/D</yellow> strafe; there is no getting out (shift fires the secondary)");
     default.sendMessage(s"<yellow>@floor</yellow> <gray>set the floor plane and arena center at your feet");
     default.sendMessage(s"<yellow>@cpu</yellow> <gray>plot CPU usage; also shown on your action bar each tick");
     default.sendMessage(s"<yellow>@clear</yellow> <gray>remove all mechs");
@@ -260,7 +262,14 @@ playerevent leave {
     fxDrop(default.uuid);
 }
 
+/** Pilots never leave their mech (owner, MEC-95): dismounting is cancelled
+ * while the player drives one. Shift (sneak) is the secondary gun's trigger
+ * instead. The seat goes only when the mech is destroyed or cleared. Menu
+ * seats still close on sneak. */
 playerevent dismount {
-    leaveMech();
+    if (mechOf(default.uuid) != 0) {
+        event.cancel();
+        return;
+    }
     menuClose();
 }
