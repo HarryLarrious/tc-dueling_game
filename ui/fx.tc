@@ -1,0 +1,223 @@
+// Screen effects (PLAN.md, Post effects; MEC-59). Each player who needs
+// effects gets one tiny glowing marker display riding them, hidden from
+// everyone else; its glow color carries the effects bitmask, a strength and
+// the player's party (mech:fx.glsl). The post shader animates everything on
+// game time, so a new color is sent only when an effect starts or stops.
+//
+// Bits: 1 zoom (strength = zoom level), 2 shake + flash, 4 damage tint,
+// 8 desaturate + fade (strength = fade), 16 EMP static, 32 HRB warning,
+// 64 cockpit visor, 128 low-HP pulse. Effects are persistent (on until
+// turned off) or pulses (on for a number of ticks).
+
+/** Marker display per player (uuid -> entity uuid). */
+declare global fxMark: dict;
+/** Persistent effect bits, strength 0..255 and party 0..15 per player. */
+declare global fxBits: dict;
+declare global fxPower: dict;
+declare global fxPartyOf: dict;
+/** Pulses per player: uuid -> {bit: tick it ends}. */
+declare global fxUntil: dict;
+/** Players whose strength is ramping up for the death fade. */
+declare global fxFading: list[str];
+/** Glow color last sent per player. */
+declare global fxSent: dict;
+
+/** Marker glow color: red = effects, green = strength, blue = 240 + party. */
+function fxColor(effects: num, strength: num, party: num): str {
+    line r = hex2(effects);
+    line g = hex2(strength);
+    line b = hex2(240 + party);
+    return "#%var(r)%var(g)%var(b)";
+}
+
+/** Number stored for uuid in dict d, or fallback. */
+function fxGet(d: dict, uuid: str, fallback: num): num {
+    if (d.hasKeys(uuid)) {
+        return d[uuid] as num;
+    }
+    return fallback;
+}
+
+/** 1 when bit is set in mask. */
+function hasBit(mask: num, bit: num): num {
+    return num.floor(mask / bit) % 2;
+}
+
+/** The player's current effects: persistent bits plus live pulses. */
+function fxMaskOf(uuid: str): num {
+    line mask = fxGet(global fxBits, uuid, 0);
+    if (global fxUntil.hasKeys(uuid)) {
+        line now = game.ticksSinceStartup;
+        for (line bit, line until of global fxUntil[uuid] as dict) {
+            line b = num.parse(line bit as str);
+            if (line until as num > line now && hasBit(line mask, line b) == 0) {
+                line mask += line b;
+            }
+        }
+    }
+    return line mask;
+}
+
+/** Spawns the player's marker: an item display at scale 0.01 riding them,
+ * glowing, with a real culling box (culling mods drop a size-0 box above
+ * the camera), hidden from every other player. */
+function fxEnsure(uuid: str) {
+    if (global fxMark.hasKeys(uuid)) {
+        return;
+    }
+    select playersByName(uuid);
+    line eye = selected.eyeLocation;
+    select reset;
+    game.spawnItemDisplay(line eye, item("white_concrete"));
+    line mark = lastEntity.uuid;
+    global fxMark[uuid] = line mark;
+    select entitiesByName(line mark);
+    selectedEntity.setDisplayScale(0.01, 0.01, 0.01);
+    selectedEntity.setDisplayCullingSize(4, 3);
+    selectedEntity.setGlowing(glowing="Enable");
+    selectedEntity.ride(uuid);
+    select reset;
+    select !playersByName(uuid);
+    selected.setEntityHidden([line mark], hidden="Enable");
+    select reset;
+}
+
+/** Sends the player's marker color if it changed. */
+function fxApply(uuid: str) {
+    fxEnsure(uuid);
+    line color = fxColor(fxMaskOf(uuid), fxGet(global fxPower, uuid, 0), fxGet(global fxPartyOf, uuid, 15));
+    if (global fxSent.hasKeys(uuid) && global fxSent[uuid] as str == line color) {
+        return;
+    }
+    global fxSent[uuid] = line color;
+    select entitiesByName(global fxMark[uuid] as str);
+    selectedEntity.setDisplayGlowColor(line color);
+    select reset;
+}
+
+/** Turns a persistent effect bit on (1) or off (0). */
+function fxSetBit(uuid: str, bit: num, enabled: num) {
+    line mask = fxGet(global fxBits, uuid, 0);
+    if (hasBit(line mask, bit) != enabled) {
+        if (enabled == 1) {
+            line mask += bit;
+        } else {
+            line mask -= bit;
+        }
+        global fxBits[uuid] = line mask;
+    }
+    fxApply(uuid);
+}
+
+/** Sets the strength (0..1): zoom level while zooming, else tint/fade. */
+function fxSetStrength(uuid: str, s: num) {
+    global fxPower[uuid] = num.clamp(num.round(s * 255), 0, 255);
+    fxApply(uuid);
+}
+
+/** Turns effect bit on for `ticks` ticks. */
+function fxPulse(uuid: str, bit: num, ticks: num) {
+    line mine = {};
+    if (global fxUntil.hasKeys(uuid)) {
+        line mine = global fxUntil[uuid] as dict;
+    }
+    line mine["%var(bit)"] = game.ticksSinceStartup + ticks;
+    global fxUntil[uuid] = line mine;
+    fxApply(uuid);
+}
+
+/** Destroyed: desaturate and fade to dark over a second; stays until the
+ * player pilots again (fxCockpit). */
+function fxDeathFade(uuid: str) {
+    global fxBits[uuid] = 8;
+    global fxPower[uuid] = 0;
+    if (global fxFading.find(uuid) == 0) {
+        global fxFading.append(uuid);
+    }
+    fxApply(uuid);
+}
+
+/** Entering (1) or leaving (0) a cockpit: the visor, no low-HP pulse, and
+ * no leftover death fade. */
+function fxCockpit(uuid: str, inside: num) {
+    global fxBits[uuid] = 64 * inside;
+    global fxPower[uuid] = 0;
+    line i = global fxFading.find(uuid);
+    if (line i > 0) {
+        global fxFading.remove(line i);
+    }
+    fxApply(uuid);
+}
+
+/** A hit on mech c that dealt `dealt`: its pilot's screen shakes on a big
+ * hit (8% of hull HP or more), and pulses at the edges while the hull is
+ * below 30%. */
+function fxHit(c: num, dealt: num) {
+    line pilot = global mDriver[c];
+    if (line pilot == "") {
+        return;
+    }
+    line hull = global mPartStart[c];
+    if (dealt >= global hbHpMax[line hull] * 0.08) {
+        fxPulse(line pilot, 2, 6);
+    }
+    line low = 0;
+    if (global hbHp[line hull] < global hbHpMax[line hull] * 0.3) {
+        line low = 1;
+    }
+    fxSetBit(line pilot, 128, line low);
+}
+
+/** Per tick: expired pulses and death-fade ramps resend the marker. */
+function fxTick {
+    line now = game.ticksSinceStartup;
+    for (line uuid, line pulses of global fxUntil) {
+        line live = {};
+        for (line bit, line until of line pulses as dict) {
+            if (line until as num > line now) {
+                line live[line bit as str] = line until;
+            }
+        }
+        if (line live.len() != (line pulses as dict).len()) {
+            global fxUntil[line uuid as str] = line live;
+            fxApply(line uuid as str);
+        }
+    }
+    for (line fading of global fxFading) {
+        line u = line fading as str;
+        global fxPower[line u] = num.min(fxGet(global fxPower, line u, 0) + 13, 255);
+        fxApply(line u);
+    }
+}
+
+/** Removes the player's marker and effect state (leaving the plot). */
+function fxDrop(uuid: str) {
+    if (global fxMark.hasKeys(uuid)) {
+        select entitiesByName(global fxMark[uuid] as str);
+        selectedEntity.remove();
+        select reset;
+    }
+    global fxMark.remove(uuid);
+    global fxBits.remove(uuid);
+    global fxPower.remove(uuid);
+    global fxPartyOf.remove(uuid);
+    global fxUntil.remove(uuid);
+    global fxSent.remove(uuid);
+    line i = global fxFading.find(uuid);
+    if (line i > 0) {
+        global fxFading.remove(line i);
+    }
+}
+
+/** Hides every existing marker from a player who just joined. */
+function fxHideFrom(uuid: str) {
+    line marks: list[str] = [];
+    for (line owner, line mark of global fxMark) {
+        line marks.append(line mark);
+    }
+    if (line marks.len() > 0) {
+        select playersByName(uuid);
+        selected.setEntityHidden(line marks, hidden="Enable");
+        select reset;
+    }
+}

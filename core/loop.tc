@@ -43,6 +43,7 @@ process mechLoop {
             break;
         }
         global lastBeat = game.ticksSinceStartup;
+        fxTick();
         if (global mCount > 0) {
             mechTick();
         }

@@ -34,6 +34,7 @@ class skeletons of placeholder parts, `@cpu` gauge). Next: the Stage 1 spikes in
 | `ui/hud.tc` | Combat HUD channels: panels of text items on boss bars, exact layout, send-on-change |
 | `ui/schema.tc` | Damage schema and shield bar on the pilot's HUD |
 | `ui/schemafont.tc` | Generated schema glyph table (`pack/src/schema_assets.py`) |
+| `ui/fx.tc` | Screen effects per player through the glowing marker (zoom, shake, EMP, HRB, visor, low HP, death fade) |
 | `ui/hudfont.tc` | Generated HUD font advances (`pack/src/hud_assets.py`) |
 | `pack/` | Resource pack source (`pack.mcmeta`, `assets/`; `src/` for Blockbench files and asset generators, not shipped) |
 | `pack/assets/minecraft/shaders/core/text.vsh`, `pack/assets/mech/shaders/include/ui.glsl` | Text shader: HUD glyphs, screen-locked menu panels, cursor (marker protocol in PLAN.md, UI and HUD) |

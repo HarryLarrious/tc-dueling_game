@@ -108,6 +108,7 @@ function leaveMech {
     if (line c != 0) {
         global mDriver[line c] = "";
         schemaHide(default.uuid);
+        fxCockpit(default.uuid, 0);
     }
 }
 
@@ -125,6 +126,7 @@ function sitMech(c: num) {
     global mDriver[line c] = default.uuid;
     default.rideEntity(global mSeat[line c]);
     schemaUpdate(line c);
+    fxCockpit(default.uuid, 1);
     default.sendMessage(s"<gray>Piloting mech <white>%var(c)</white>: W/S drive, A/D strafe, sneak to get out.");
 }
 
@@ -237,8 +239,13 @@ playerevent join {
     default.setToCreativeMode();
     restartLoop();
     packJoin();
+    fxHideFrom(default.uuid);
     default.sendMessage(s"<gold>Mechs <gray>- type <yellow>@help</yellow> for commands.");
     selfTestJoin();
+}
+
+playerevent leave {
+    fxDrop(default.uuid);
 }
 
 playerevent dismount {

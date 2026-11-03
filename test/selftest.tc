@@ -14,6 +14,12 @@ function selfTestOnJoin(): num {
     return 1;
 }
 
+/** Visual demo after the checks: "" none, "hud" (the demo HUD for 10 s) or
+ * "fx" (each screen effect for 12 s), for screenshots. */
+function selfTestDemo(): str {
+    return "";
+}
+
 /** Records one check. */
 function check(name: str, ok: num, got: str, want: str) {
     if (ok == 1) {
@@ -208,6 +214,18 @@ function runSelfTest {
     spawnMech(defaultLoadout("walker"));
     checkNum("schema dome adds shield", schemaItems(global mCount).len(), 12, 0);
 
+    // Screen effects (MEC-59): marker color, pulses expire.
+    checkStr("fx color visor+lowhp", fxColor(192, 0, 15), "#C000FF");
+    line me = default.uuid;
+    fxCockpit(line me, 1);
+    checkNum("fx cockpit visor", fxMaskOf(line me), 64, 0);
+    fxPulse(line me, 2, 5);
+    checkNum("fx pulse on", fxMaskOf(line me), 66, 0);
+    wait(10);
+    checkNum("fx pulse expired", fxMaskOf(line me), 64, 0);
+    checkStr("fx marker sent", global fxSent[line me] as str, "#4000FF");
+    fxCockpit(line me, 0);
+
     hudReset(default.uuid);
     hudDemo(default.uuid);
     hudRemove(default.uuid, "schema");
@@ -219,9 +237,38 @@ function runSelfTest {
     line passed = global testPass;
     line failed = global testFail;
     default.sendMessage(s"<gold>MECHTEST DONE %var(passed) passed %var(failed) failed");
-    // The demo HUD stays up 10 seconds for a screenshot.
-    wait(200);
+    // Visual demo for screenshots (selfTestDemo()): the demo HUD, then
+    // each screen effect for 12 s.
+    line me2 = default.uuid;
+    if (selfTestDemo() == "fx") {
+        for (line stage of ["zoom", "fade", "hrb", "visor", "lowhp", "emp", "shake"]) {
+            line name = line stage as str;
+            default.sendMessage(s"<gold>MECHTEST FX %var(name)");
+            fxCockpit(line me2, 0);
+            if (line name == "zoom") {
+                fxSetStrength(line me2, 0.5);
+                fxSetBit(line me2, 1, 1);
+            } else if (line name == "fade") {
+                fxDeathFade(line me2);
+            } else if (line name == "hrb") {
+                fxSetBit(line me2, 32, 1);
+            } else if (line name == "visor") {
+                fxCockpit(line me2, 1);
+            } else if (line name == "lowhp") {
+                fxSetBit(line me2, 128, 1);
+            } else if (line name == "emp") {
+                fxSetBit(line me2, 16, 1);
+            } else {
+                fxPulse(line me2, 2, 240);
+            }
+            wait(240);
+        }
+    } else if (selfTestDemo() == "hud") {
+        wait(200);
+    }
+    fxCockpit(line me2, 0);
     hudReset(default.uuid);
+    default.sendMessage(s"<gold>MECHTEST FX end");
 }
 
 /** Join hook: runs the self-test a second after the player enters play

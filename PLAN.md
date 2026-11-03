@@ -655,8 +655,8 @@ post effect whenever a glowing entity is on screen, and the pack replaces it:
 
   | Channel | Value |
   | --- | --- |
-  | red | effects bitmask: 1 zoom (up to 3×), 2 shake, 4 red damage tint with vignette, 8 desaturate |
-  | green | strength 0–255 |
+  | red | effects bitmask: 1 zoom (up to 3×) + scope frame, 2 shake + flash, 4 red damage tint with vignette, 8 desaturate + fade, 16 EMP static/glitch/color split, 32 HRB warning pulse, 64 cockpit visor, 128 low-HP heartbeat |
+  | green | strength 0–255: the zoom level while zooming, otherwise tint and fade |
   | blue | `240 + party`: 0 shows every outline, 1–14 only that party's color, 15 none (solo players) |
 
   Glow colors with blue ≥ 240 are reserved for the marker.
@@ -697,7 +697,20 @@ post effect whenever a glowing entity is on screen, and the pack replaces it:
 | Party outlines | Always: every mech glows in its party-id color; the post pass keeps only outlines that match your party id |
 
 Settings offer screen effects full / reduced / off and screen shake on / off;
-the marker carries the choice.
+the server applies the choice when it builds the marker color.
+
+**Effects as built** (`ui/fx.tc` + `mech:post/fx`, MEC-59): per player,
+persistent bits (`fxSetBit`, `fxCockpit` for the visor), timed pulses
+(`fxPulse(uuid, bit, ticks)`, expired by `fxTick` in the mech loop), a
+strength (`fxSetStrength`) and a death-fade ramp (`fxDeathFade`, 0→255 in
+20 ticks). The marker is spawned on first use, hidden from every other
+player (and from late joiners on join), and removed on leave; its color is
+resent only when it changes. Game hooks: piloting turns the visor on, a hit
+of 8% of hull HP or more shakes the pilot's screen for 6 ticks, a hull under
+30% pulses the edges, destruction fades the screen. Zoom (MEC-42), EMP
+(MEC-50) and HRB (MEC-51) call `fxSetBit`/`fxPulse`. Verified on Plot
+206003 (2026-11-03) by screenshot: zoom 2× with scope frame, fade, HRB, EMP,
+low HP, visor; the HUD stays sharp over all of them.
 
 **Pack source and hosting**
 

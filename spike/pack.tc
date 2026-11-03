@@ -23,7 +23,7 @@ declare global "fxMark %uuid": str;
 
 /** The newest pack on pack-dist (tools/build_pack.py --publish prints it). */
 function defaultPackUrl(): str {
-    return "https://raw.githubusercontent.com/HarryLarrious/tc-mech_game/pack-dist/mech-pack-cfd4118faec2.zip";
+    return "https://raw.githubusercontent.com/HarryLarrious/tc-mech_game/pack-dist/mech-pack-684b8e5634fc.zip";
 }
 
 /** Remembers an entity for @pack clear. */
@@ -365,17 +365,8 @@ function partyColor(party: num): str {
     return line colors[num.clamp(party, 1, 14)] as str;
 }
 
-/** Screen-effect marker glow color (PLAN.md, Post effects): red = effects
- * bitmask, green = strength 0..255, blue = 240 + party (0 all outlines,
- * 1..14 one party, 15 none). */
-function fxColor(effects: num, strength: num, party: num): str {
-    line r = hex2(effects);
-    line g = hex2(strength);
-    line b = hex2(240 + party);
-    return "#%var(r)%var(g)%var(b)";
-}
-
-/** Effects bitmask from "zoom+shake+tint+gray" (any subset, any order). */
+/** Effects bitmask from names joined by + (zoom shake tint gray emp hrb
+ * visor lowhp, any subset, any order). */
 function fxMask(names: str): num {
     line mask = 0;
     for (line name of names.split("+")) {
@@ -387,6 +378,14 @@ function fxMask(names: str): num {
             line mask += 4;
         } else if (line name == "gray") {
             line mask += 8;
+        } else if (line name == "emp") {
+            line mask += 16;
+        } else if (line name == "hrb") {
+            line mask += 32;
+        } else if (line name == "visor") {
+            line mask += 64;
+        } else if (line name == "lowhp") {
+            line mask += 128;
         }
     }
     return line mask;

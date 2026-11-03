@@ -76,6 +76,7 @@ function applyHit(c: num, part: num, amount: num, impulse: vec, source: num = 0)
     }
     if (global mAlive[c] == 1) {
         schemaUpdate(c);
+        fxHit(c, line dealt);
     }
     return line dealt;
 }

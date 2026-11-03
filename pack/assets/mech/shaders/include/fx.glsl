@@ -10,10 +10,15 @@
 // Glow colors with blue >= 240 are reserved for the marker; party colors
 // (mech_party_color) keep every channel <= 230.
 
-const int MECH_FX_ZOOM = 1;
-const int MECH_FX_SHAKE = 2;
-const int MECH_FX_TINT = 4;
-const int MECH_FX_GRAY = 8;
+const int MECH_FX_ZOOM = 1;     // digital zoom 1..3x by strength, scope frame
+const int MECH_FX_SHAKE = 2;    // shake + flash (big hits, recoil, landings)
+const int MECH_FX_TINT = 4;     // red damage tint with vignette
+const int MECH_FX_GRAY = 8;     // desaturate + fade to dark by strength (destroyed)
+const int MECH_FX_EMP = 16;     // static, glitch lines, color split
+const int MECH_FX_HRB = 32;     // red warning pulse (in an HRB strike zone)
+const int MECH_FX_VISOR = 64;   // always-on cockpit visor: scanlines, vignette
+const int MECH_FX_LOWHP = 128;  // heartbeat edge pulse at low HP
+// Strength drives zoom when MECH_FX_ZOOM is set; otherwise tint and fade.
 
 const int MECH_PARTY_ALL = 0;
 const int MECH_PARTY_NONE = 15;

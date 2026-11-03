@@ -35,6 +35,8 @@ mechs per map, 60 live projectiles (PLAN.md, CPU rules).
   run `tools/read_selftest.sh 30 "$HOME/.claude/skills/terracotta/scripts/tc-mode.py play"`
   to switch to play and read the result (exit 0 = all passed). Add checks for
   each new feature to `runSelfTest`. Turn it off with `selfTestOnJoin()`.
+  For visual checks set `selfTestDemo()` to "hud" or "fx" and take
+  screenshots of the stages (`MECHTEST FX <name>` lines); set it back to "".
 - **Resource pack**: every change under `pack/` must pass
   `python3 tools/build_pack.py --check` (JSON, resource-location names, and
   every shader compiled with `glslc` under the 26.3 define sets). Publish with
