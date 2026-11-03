@@ -20,10 +20,12 @@ from PIL import Image, ImageDraw
 
 ASSETS = Path(__file__).resolve().parent.parent / "assets"
 
-# Reserved alpha for emissive pixels (see PLAN.md, Model rules). Any alpha other
-# than 0/255 sends the face to the translucent item pipeline, so marked pixels
-# sit on their own faces.
+# Reserved alphas for emissive pixels, read by core/item.fsh (PLAN.md, Model
+# rules): 250 full bright, 251 full bright and pulsing. Any alpha other than
+# 0/255 sends the face to the translucent item pipeline, so marked pixels sit
+# on their own faces.
 EMISSIVE_ALPHA = 250
+EMISSIVE_PULSE_ALPHA = 251
 
 BOSS_BAR_SPRITES = [
     f"{color}_{part}"
@@ -40,31 +42,58 @@ def save(img: Image.Image, rel: str) -> None:
 
 
 def test_part() -> None:
-    """16x16 sheet. Regions (x0, y0, x1, y1):
-    (0,0,3,16) arm sides, light grey, tinted by custom model data color 0;
-    (4,0,10,6) joint housing; (10,0,12,6) emissive strip (reserved alpha);
-    (12,0,14,6) light_emission comparison strip; (4,6,7,9) arm end cap."""
-    img = Image.new("RGBA", (16, 16), (0, 0, 0, 0))
-    px = img.load()
-    for y in range(16):
-        for x in range(3):
-            px[x, y] = (205, 205, 205, 255)
-        px[0, y] = px[2, y] = (180, 180, 180, 255)
-    for y in (3, 8, 13):  # panel lines
-        for x in range(3):
-            px[x, y] = (150, 150, 150, 255)
-    for y in range(6):
-        for x in range(4, 10):
-            edge = x in (4, 9) or y in (0, 5)
-            px[x, y] = (95, 95, 102, 255) if edge else (62, 62, 68, 255)
-    for y in range(6):
-        for x in range(10, 12):
-            px[x, y] = (80, 230, 255, EMISSIVE_ALPHA)
-        for x in range(12, 14):
-            px[x, y] = (255, 150, 40, 255)
-    for y in range(6, 9):
-        for x in range(4, 7):
-            px[x, y] = (180, 180, 180, 255)
+    """256x256 sheet (16 texels per model unit). Regions in model units
+    (x0, y0, x1, y1), times 16 in texels:
+    (0,0,3,16) arm sides, brushed metal, tinted by custom model data color 0;
+    (4,0,10,6) joint housing; (10,0,12,6) shader emissive strip, alpha 250 on
+    top and 251 (pulsing) below; (12,0,14,6) light_emission comparison
+    strip; (4,6,7,9) arm end cap."""
+    import random
+
+    rng = random.Random(7)
+    k = 16
+    img = Image.new("RGBA", (16 * k, 16 * k), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+
+    # Arm: brushed metal (fine vertical streaks), darker toward the edges.
+    w = 3 * k
+    for x in range(w):
+        edge = abs(x - (w - 1) / 2) / ((w - 1) / 2)
+        base = 214 - 38 * edge ** 2 + rng.uniform(-6, 6)
+        for y in range(16 * k):
+            v = int(base + rng.uniform(-3, 3))
+            img.putpixel((x, y), (v, v, min(255, v + 4), 255))
+    for py in (3 * k, 8 * k, 13 * k):  # panel seams with a lit lower lip
+        d.rectangle((0, py - 1, w - 1, py), fill=(118, 120, 126, 255))
+        d.line((0, py + 1, w - 1, py + 1), fill=(236, 238, 242, 255))
+        for bx in (8, w - 9):  # bolts
+            d.ellipse((bx - 3, py + 6, bx + 3, py + 12), fill=(150, 152, 158, 255), outline=(96, 98, 104, 255))
+
+    # Joint housing: gunmetal with a machined ring and a hub.
+    jx0, jy0, jx1, jy1 = 4 * k, 0, 10 * k, 6 * k
+    for y in range(jy0, jy1):
+        t = (y - jy0) / (jy1 - jy0)
+        v = int(78 - 22 * t)
+        d.line((jx0, y, jx1 - 1, y), fill=(v, v, v + 6, 255))
+    cx, cy, r = (jx0 + jx1) / 2, (jy0 + jy1) / 2, 2.3 * k
+    d.ellipse((cx - r, cy - r, cx + r, cy + r), outline=(132, 136, 146, 255), width=5)
+    d.ellipse((cx - r + 9, cy - r + 9, cx + r - 9, cy + r - 9), fill=(44, 45, 50, 255))
+    d.ellipse((cx - 10, cy - 10, cx + 10, cy + 10), fill=(110, 112, 120, 255), outline=(160, 164, 172, 255), width=2)
+    d.rectangle((jx0, jy0, jx1 - 1, jy1 - 1), outline=(104, 106, 114, 255), width=3)
+
+    # Shader strip: steady cyan (250) on top, pulsing amber (251) below.
+    sx0, sx1 = 10 * k, 12 * k
+    for y in range(0, 3 * k):
+        glow = 1.0 - abs(((y % k) / k) - 0.5) * 0.4
+        d.line((sx0, y, sx1 - 1, y), fill=(int(70 * glow), int(225 * glow), int(255 * glow), EMISSIVE_ALPHA))
+    for y in range(3 * k, 6 * k):
+        d.line((sx0, y, sx1 - 1, y), fill=(255, 130, 50, EMISSIVE_PULSE_ALPHA))
+
+    # light_emission comparison strip (plain opaque orange).
+    d.rectangle((12 * k, 0, 14 * k - 1, 6 * k - 1), fill=(255, 150, 40, 255))
+
+    # End cap.
+    d.rectangle((4 * k, 6 * k, 7 * k - 1, 9 * k - 1), fill=(186, 188, 194, 255), outline=(140, 142, 148, 255), width=3)
     save(img, "mech/textures/item/test_part.png")
 
 
