@@ -22,7 +22,7 @@ declare global "fxMark %uuid": str;
 
 /** The newest pack on pack-dist (tools/build_pack.py --publish prints it). */
 function defaultPackUrl(): str {
-    return "https://raw.githubusercontent.com/HarryLarrious/tc-mech_game/pack-dist/mech-pack-e9da4ab36961.zip";
+    return "https://raw.githubusercontent.com/HarryLarrious/tc-mech_game/pack-dist/mech-pack-9f4c4bc059cb.zip";
 }
 
 /** Two uppercase hex digits for n in 0..255. */
@@ -63,8 +63,12 @@ function trackEntity(uuid: str) {
 /** Hides an entity from every player but the current one, now and for later joiners. */
 function makePrivate(uuid: str) {
     global packPrivate.append(uuid);
-    allPlayers.setEntityHidden(uuid, hidden="Enable");
-    default.setEntityHidden(uuid, hidden="Disable");
+    // Hide it only from the others: hiding it from the owner too and then
+    // showing it again re-sends the entity and can drop riding links.
+    line owner = default.uuid;
+    select !playersByName(line owner);
+    selected.setEntityHidden(uuid, hidden="Enable");
+    select reset;
 }
 
 /** Text display setup the text shader expects for menu glyphs: yaw 0,
@@ -358,17 +362,45 @@ function beepCommand {
 
 // ---------------------------------------------------------------- @fx @outline
 
-/** Glow color from a chat argument: "ff8000" or "#ff8000". */
-function glowArg(parts: list, index: num, fallback: str): str {
-    if (parts.len() < index) {
-        return fallback;
-    }
-    line raw = (parts[index] as str).replace("#", "");
-    return "#%var(raw)";
+/** Outline glow color of party 1..14 (same table as mech_party_color in
+ * mech:fx.glsl). */
+function partyColor(party: num): str {
+    line colors = ["#E64040", "#E68740", "#E6CE40", "#B6E640", "#6FE640", "#40E658", "#40E69F",
+        "#40E6E6", "#409FE6", "#4058E6", "#6F40E6", "#B640E6", "#E640CE", "#E64087"];
+    return line colors[num.clamp(party, 1, 14)] as str;
 }
 
-/** @fx <hex> | off: the player's glowing post-effect marker, glow color =
- * effect code (encoding set by MEC-20). Rides the player, only they see it. */
+/** Screen-effect marker glow color (PLAN.md, Post effects): red = effects
+ * bitmask, green = strength 0..255, blue = 240 + party (0 all outlines,
+ * 1..14 one party, 15 none). */
+function fxColor(effects: num, strength: num, party: num): str {
+    line r = hex2(effects);
+    line g = hex2(strength);
+    line b = hex2(240 + party);
+    return "#%var(r)%var(g)%var(b)";
+}
+
+/** Effects bitmask from "zoom+shake+tint+gray" (any subset, any order). */
+function fxMask(names: str): num {
+    line mask = 0;
+    for (line name of names.split("+")) {
+        if (line name == "zoom") {
+            line mask += 1;
+        } else if (line name == "shake") {
+            line mask += 2;
+        } else if (line name == "tint") {
+            line mask += 4;
+        } else if (line name == "gray") {
+            line mask += 8;
+        }
+    }
+    return line mask;
+}
+
+/** @fx <zoom|shake|tint|gray joined by +> [strength 0-100] [party 0-15] | off:
+ * the player's screen-effect marker. A tiny glowing display that rides the
+ * player and only they see; the outline shader turns its glow color into
+ * the effect. */
 function fxCommand(parts: list) {
     if (global "fxMark %uuid" != "") {
         select entitiesByName(global "fxMark %uuid");
@@ -376,42 +408,56 @@ function fxCommand(parts: list) {
         select reset;
         global "fxMark %uuid" = "";
     }
-    if (parts.len() >= 2 && parts[2] as str == "off") {
+    line names = "zoom";
+    if (parts.len() >= 2) {
+        line names = parts[2] as str;
+    }
+    if (line names == "off") {
         default.sendMessage(s"<gray>Effect marker removed.");
         return;
     }
-    line color = glowArg(parts, 2, "#FF0000");
+    line effects = fxMask(line names);
+    line strength = num.clamp(num.floor(argNum(parts, 3, 50) * 2.55 + 0.5), 0, 255);
+    line party = num.clamp(argNum(parts, 4, 0), 0, 15);
+    line color = fxColor(line effects, line strength, line party);
+
     line eye = default.eyeLocation;
     game.spawnItemDisplay(loc(line eye.x, line eye.y, line eye.z), item("white_concrete"));
     line mark = lastEntity.uuid;
     global "fxMark %uuid" = line mark;
     select entitiesByName(line mark);
-    selectedEntity.setDisplayScale(0.05, 0.05, 0.05);
-    selectedEntity.setDisplayCullingSize(0, 0);
+    // Tiny in the world; the outline shader draws it at a screen corner.
+    selectedEntity.setDisplayScale(0.01, 0.01, 0.01);
+    // A real culling box around the head rather than size 0: culling mods
+    // (Sodium, EntityCulling) drop a zero-size box above the camera when you
+    // look level or down. Vanilla inflates this box by 0.5, so it contains
+    // the camera and stays visible from every direction.
+    selectedEntity.setDisplayCullingSize(4, 3);
     selectedEntity.setGlowing(glowing="Enable");
     selectedEntity.setDisplayGlowColor(line color);
     selectedEntity.ride(default.uuid);
     select reset;
     trackEntity(line mark);
     makePrivate(line mark);
-    default.sendMessage(s"<gray>Effect marker glow <white>%var(color)</white>.");
+    default.sendMessage(s"<gray>Effects <white>%var(names)</white> (mask %var(effects)), strength <white>%var(strength)</white>/255, outlines party <white>%var(party)</white>: glow <white>%var(color)</white>.");
 }
 
-/** @outline [hex hex hex]: three glowing cubes ahead, one per color. */
+/** @outline [party party party]: three glowing cubes ahead in those parties'
+ * colors (default 1 2 3). With @fx ... <party> only that party's shows. */
 function outlineCommand(parts: list) {
-    line colors = [glowArg(parts, 2, "#FF4040"), glowArg(parts, 3, "#40FF40"), glowArg(parts, 4, "#4040FF")];
     line eye = default.eyeLocation;
     line f = forwardVec();
     line side = vec(0 - line f.z, 0, line f.x);
     repeat (line i to 3) {
+        line party = argNum(parts, line i + 1, line i);
         line p = vec(line eye.x, line eye.y - 1, line eye.z) + line f * 5 + line side * ((line i - 2) * 1.5);
         game.spawnItemDisplay(loc(line p.x, line p.y, line p.z), item("iron_block"));
         line cube = lastEntity.uuid;
         select entitiesByName(line cube);
         selectedEntity.setGlowing(glowing="Enable");
-        selectedEntity.setDisplayGlowColor(line colors[line i] as str);
+        selectedEntity.setDisplayGlowColor(partyColor(line party));
         select reset;
         trackEntity(line cube);
     }
-    default.sendMessage(s"<gray>Three glowing cubes. With the outline filter (MEC-20) only your party's color shows.");
+    default.sendMessage(s"<gray>Three glowing cubes. <yellow>@fx zoom 0 2</yellow> keeps only party 2's outline.");
 }

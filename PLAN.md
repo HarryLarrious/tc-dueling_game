@@ -540,6 +540,39 @@ post effect whenever a glowing entity is on screen, and the pack replaces it:
   `setDisplayGlowColor` call; the animation runs on game time in the shader.
 - Post effects run before the GUI is drawn, so the HUD never zooms, shakes or
   blurs.
+- **Marker encoding** (MEC-20, `mech:fx.glsl`), the marker's glow color:
+
+  | Channel | Value |
+  | --- | --- |
+  | red | effects bitmask: 1 zoom (up to 3×), 2 shake, 4 red damage tint with vignette, 8 desaturate |
+  | green | strength 0–255 |
+  | blue | `240 + party`: 0 shows every outline, 1–14 only that party's color, 15 none (solo players) |
+
+  Glow colors with blue ≥ 240 are reserved for the marker.
+- **Party outline colors** (party 1–14; every channel ≤ 230, so never a
+  marker): `#E64040 #E68740 #E6CE40 #B6E640 #6FE640 #40E658 #40E69F #40E6E6
+  #409FE6 #4058E6 #6F40E6 #B640E6 #E640CE #E64087`. A mech glows in its
+  party's color; the filter keeps only the viewer's own party.
+- **How it is drawn**: `core/rendertype_outline.vsh` turns every quad of the
+  marker into a 2×2-pixel square at the outline image's NDC (−1, −1)
+  corner, read back in post passes as texel (0, 0) on either backend.
+  `post_effect/entity_outline.json` runs: `mech:post/fx` (main + outline →
+  `fx`), blit `fx` → `minecraft:main`, `mech:post/outline_filter` (drops the
+  marker and other parties' outlines), then vanilla's sobel, two blurs and
+  blit. The marker display is an item display at scale 0.01 riding the
+  player, hidden from the other players only (hiding it from its owner too
+  and showing it again re-sends it and loses it).
+- **Marker pitfalls found in game** (MEC-20):
+  - Item outlines draw with back-face culling (`OUTLINE_CULL`). The marker
+    square is wound counter-clockwise; clockwise was always culled.
+  - Draws share one vertex buffer and may start at any vertex, so
+    `gl_VertexIndex % 4` is only a corner index up to rotation. A fixed
+    winding survives that; anything that changes per quad (e.g. alternating
+    by `gl_VertexIndex / 4`) breaks quads apart.
+  - Give the marker a real culling box (`setDisplayCullingSize(4, 3)`)
+    instead of 0: vanilla inflates it by 0.5 so it contains the camera, and
+    it stays visible to culling mods (Sodium, EntityCulling) in every view
+    direction.
 
 | Effect | When |
 | --- | --- |
@@ -656,7 +689,8 @@ the marker carries the choice.
 
    Test commands (MEC-21, `spike/pack.tc`): `@pack [url|status|clear]`,
    `@hud [anchor] [palette] | grid | off`, `@menu`, `@model [party]`,
-   `@beep`, `@fx <hex>|off`, `@outline [hex hex hex]`. Results (fill in on
+   `@beep`, `@fx <zoom+shake+tint+gray> [strength%] [party] | off`,
+   `@outline [party party party]`. Results (fill in on
    the plot; ✅ pass, ❌ fail + note):
 
    | Check | Command | Result |
@@ -676,8 +710,8 @@ the marker carries the choice.
    | All of the above with improved transparency on | — | item glow ✅; UI not checked yet |
    | Emissive pixel and game-time animation | `@model` (MEC-19) | ✅ 250 glows, 251 pulses, also with improved transparency |
    | High-res part texture smooth, world lighting on parts | `@model` (MEC-19) | ✅ |
-   | Marker glow drives zoom/shake, HUD unaffected | `@fx`, needs MEC-20 | — |
-   | Only the party color's outlines show | `@outline`, needs MEC-20 | — |
+   | Marker glow drives zoom/shake, HUD unaffected | `@fx zoom+shake 60` | ✅ zoom, shake, tint, gray, any view direction |
+   | Only the party color's outlines show | `@outline`, `@fx zoom 0 2` | ✅ |
 5. **Controls spike**: on an interaction-entity seat, confirm every row of the
    controls table: cancelled `dismount` keeps the pilot seated and shift is
    still readable; space while riding; holding right click with the control
