@@ -19,8 +19,9 @@ placeholder hull box, `@cpu` gauge). Next: the Stage 1 spikes in
 | --- | --- |
 | `core/state.tc` | Mech and world state declarations + tunables |
 | `core/loop.tc` | Main loop: per-tick drive, push-out, draw |
-| `core/commands.tc` | `@mech @sit @clear @cpu @floor @help`, boarding |
+| `core/commands.tc` | `@mech @sit @clear @cpu @floor @help`, the pack spike commands, boarding |
 | `mech/chassis.tc` | Spawn, drive, push-out, draw the chassis |
+| `spike/cpu.tc`, `spike/pack.tc` | Stage 1 spikes: CPU test rigs (`@spike`), pack tests (`@pack @hud @menu @model @beep @fx @outline`); removed by MEC-23 |
 | `combat/ game/ ui/ maps/` | Empty until their stages |
 | `pack/` | Resource pack source (`pack.mcmeta`, `assets/`; `src/` for Blockbench files and asset generators, not shipped) |
 | `pack/assets/minecraft/shaders/core/text.vsh`, `pack/assets/mech/shaders/include/ui.glsl` | Text shader: HUD glyphs, screen-locked menu panels, cursor (marker protocol in PLAN.md, UI and HUD) |

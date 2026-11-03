@@ -598,6 +598,30 @@ the marker carries the choice.
    `light_emission` strip on its south face), font `mech:ui` (U+E000 panel
    64×32, U+E001 cursor 8×8 with its tip at the top-left), sound
    `mech:test.beep`, and transparent `boss_bar` sprites.
+
+   Test commands (MEC-21, `spike/pack.tc`): `@pack [url|status|clear]`,
+   `@hud [anchor] [palette] | grid | off`, `@menu`, `@model [party]`,
+   `@beep`, `@fx <hex>|off`, `@outline [hex hex hex]`. Results (fill in on
+   the plot; ✅ pass, ❌ fail + note):
+
+   | Check | Command | Result |
+   | --- | --- | --- |
+   | Pack downloads and loads (`resourcePackLoad` fires) | `@pack` | — |
+   | Test part shows, tint follows the party color | `@model 1`…`5` | — |
+   | Joint stays still while the arm swings | `@model` | — |
+   | `light_emission` strip bright in the dark | `@model` at night | — |
+   | Custom sound plays | `@beep` | — |
+   | Boss bar shows only its title (sprites hidden, shadow hidden) | `@hud` | — |
+   | HUD glyphs keep their screen spot at GUI scale 1–4 | `@hud grid` | — |
+   | … and at FOV 30–110 | `@hud grid` | — |
+   | Menu panel locked while the camera turns | `@menu` | — |
+   | Cursor follows the mouse with no lag | `@menu` | — |
+   | Server hover matches the visible cursor (panel turns cyan) | `@menu` | — |
+   | Menu hidden from a second player | `@menu` + 2nd player | — |
+   | All of the above with improved transparency on | — | — |
+   | Emissive pixel and game-time animation | needs MEC-19 | — |
+   | Marker glow drives zoom/shake, HUD unaffected | `@fx`, needs MEC-20 | — |
+   | Only the party color's outlines show | `@outline`, needs MEC-20 | — |
 5. **Controls spike**: on an interaction-entity seat, confirm every row of the
    controls table: cancelled `dismount` keeps the pilot seated and shift is
    still readable; space while riding; holding right click with the control
