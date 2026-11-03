@@ -1,0 +1,87 @@
+// 3D mech previews in menus (MEC-103): a small copy of a loadout's mech
+// built from its skeleton pose (skeletonPose), one private item display per
+// part, slowly turning. Its tints carry the preview marker (low 2 bits of
+// each channel set), so core/item.vsh locks it to the screen like the text
+// panels: it stays put while the seated player looks around, at a fixed
+// 70-degree projection. Placed by canvas offset (cx, cy) from the center at
+// depth d blocks in front of the eye.
+
+/** Canvas units of vertical view at depth d: 360 units span 2 * 0.7 * d
+ * blocks (tan 35 degrees). */
+function previewBlocksPerUnit(d: num): num {
+    return 2 * 0.7002 * d / 360;
+}
+
+/** World point (relative to the eye, the player facing +z) of canvas offset
+ * (cx, cy) at depth d. World +x is to the left. */
+function previewPoint(cx: num, cy: num, d: num): vec {
+    line k = previewBlocksPerUnit(d);
+    return vec(0 - cx * line k, 0 - cy * line k, d);
+}
+
+/** Spawns a preview of loadout lo for player uuid: the mech's center at
+ * canvas (cx, cy), depth d, fitted into width x height canvas units, turned
+ * to yaw. Returns its widget state {ents, lo, base, s, yaw}. */
+function previewSpawn(uuid: str, eye: vec, lo: dict, cx: num, cy: num, d: num, width: num, height: num, yaw: num): dict {
+    line cls = lo["cls"] as str;
+    line sk = classSkeleton(line cls);
+    line torso = line sk["torso"] as vec;
+    line top = line torso.y + (line sk["torsoSize"] as vec).y * 0.5;
+    line span = 2 * skeletonReach(line cls, partRow(line cls)["size"] as vec);
+    line k = previewBlocksPerUnit(d);
+    line s = num.min(height * line k / line top, width * line k / line span);
+    // Ground point: the center minus half the scaled height.
+    line base = eye + previewPoint(cx, cy, d) - vec(0, line top * line s * 0.5, 0);
+    line ents: list[str] = [];
+    repeat (line i to partTotal(line cls)) {
+        line look = partVisual(line cls, line i - 1);
+        line tint = (line look[2] as num) | 0x030303;
+        line part = item("stone").setModel(line look[1] as str).setModelDataNumbers(line tint, type="Colors");
+        game.spawnItemDisplay(loc(line base.x, line base.y, line base.z), line part);
+        line ent = lastEntity.uuid;
+        select entitiesByName(line ent);
+        selectedEntity.setDisplayCullingSize(0, 0);
+        selectedEntity.setDisplayTeleportDuration(1);
+        selectedEntity.setDisplayBrightness(15, 15);
+        select reset;
+        privAdd(uuid, line ent);
+        line ents.append(line ent);
+    }
+    line st = {ents: line ents, lo: lo, base: line base, s: line s, yaw: yaw};
+    previewDraw(line st);
+    return line st;
+}
+
+/** Places every part of preview st at its yaw. */
+function previewDraw(st: dict) {
+    line lo = st["lo"] as dict;
+    line cls = lo["cls"] as str;
+    line hull = partRow(line cls)["size"] as vec;
+    // Catalog hull box is (side, up, forward); poses take (forward, up, side).
+    line poses = skeletonPose(line cls, line lo, vec(line hull.z, line hull.y, line hull.x), st["base"] as vec, yawToVec(st["yaw"] as num), st["s"] as num);
+    line ents = st["ents"] as list;
+    repeat (line i to line poses.len()) {
+        line pose = line poses[line i] as list;
+        line at = line pose[1] as vec;
+        select entitiesByName(line ents[line i] as str);
+        selectedEntity.teleport(loc(line at.x, line at.y, line at.z));
+        selectedEntity.setDisplayTransformationMatrix(columnsMatrix(line pose[2] as vec, line pose[3] as vec, line pose[4] as vec));
+        selectedEntity.setDisplayInterpolation(1, 0);
+        select reset;
+    }
+}
+
+/** Turns preview st by `step` degrees and redraws it; returns the new state. */
+function previewTurn(st: dict, step: num): dict {
+    line st2 = st;
+    line st2["yaw"] = (st["yaw"] as num) + step;
+    previewDraw(line st2);
+    return line st2;
+}
+
+/** Removes a preview's displays. */
+function previewRemove(st: dict) {
+    for (line ent of st["ents"] as list) {
+        menuRemoveEnt(line ent as str);
+    }
+}

@@ -133,16 +133,46 @@ function spawnPart(at: vec, model: str, color: num, kind: num, role: str) {
     addHitbox(at, kind, role);
 }
 
-/** Local (left, up, forward) mount of augment module n (1 or 2): side pods
- * on the hull flanks, behind center. */
-function augMount(c: num, n: num): vec {
-    line sk = classSkeleton(global mClass[c]);
-    line hull = global mSize[c];
+/** Local (left, up, forward) mount of augment module n (1 or 2) on class
+ * cls with hull size hull (mSize order: forward, up, side): side pods on the
+ * hull flanks, behind center. */
+function augMountOf(cls: str, hull: vec, n: num): vec {
     line side = 1;
     if (n == 2) {
         line side = -1;
     }
-    return vec(line side * (line hull.z * 0.5 + 0.25), line sk["ride"] as num, 0 - line hull.x * 0.2);
+    return vec(line side * (hull.z * 0.5 + 0.25), classSkeleton(cls)["ride"] as num, 0 - hull.x * 0.2);
+}
+
+/** Augment module n's mount on mech c. */
+function augMount(c: num, n: num): vec {
+    return augMountOf(global mClass[c], global mSize[c], n);
+}
+
+/** Model and tint of part i (0 = hull) of class cls, in display order:
+ * [model, color]. Game tints keep the low 2 bits of each channel clear; set
+ * they mark a menu preview (core/item.vsh). */
+function partVisual(cls: str, i: num): list {
+    line colors = classSkeleton(cls)["colors"] as list;
+    line model = "mech:skel_segment";
+    line color = line colors[4] as num;
+    if (i == 0 || i == 1 || i == 4 || i == 5) {
+        line model = "mech:skel_box";
+    }
+    if (i == 0) {
+        line color = line colors[1] as num;
+    } else if (i == 1) {
+        line color = line colors[2] as num;
+    } else if (i <= 5) {
+        line color = line colors[3] as num;
+    }
+    return [line model, line color & 0xFCFCFC];
+}
+
+/** Number of parts of class cls: hull, torso, two guns, two modules, and a
+ * thigh and shin per leg. */
+function partTotal(cls: str): num {
+    return 6 + 2 * (classSkeleton(cls)["hips"] as list).len();
 }
 
 /** Spawns mech c's part displays (it must already have mPos, mClass, mSize
@@ -150,18 +180,22 @@ function augMount(c: num, n: num): vec {
  * augment modules 1 and 2, then thigh and shin for each leg. */
 function spawnParts(c: num) {
     line sk = classSkeleton(global mClass[c]);
-    line colors = line sk["colors"] as list;
     line at = global mPos[c];
     global mPartStart.append(global mPartEnt.len() + 1);
-    spawnPart(at, "mech:skel_box", line colors[1] as num, 1, "hull");
-    spawnPart(at, "mech:skel_box", line colors[2] as num, 1, "torso");
-    spawnPart(at, "mech:skel_segment", line colors[3] as num, 2, "main");
-    spawnPart(at, "mech:skel_segment", line colors[3] as num, 2, "secondary");
-    spawnPart(at, "mech:skel_box", line colors[3] as num, 1, "aug1");
-    spawnPart(at, "mech:skel_box", line colors[3] as num, 1, "aug2");
-    repeat (line leg to (line sk["hips"] as list).len()) {
-        spawnPart(at, "mech:skel_segment", line colors[4] as num, 3, "thigh%var(leg)");
-        spawnPart(at, "mech:skel_segment", line colors[4] as num, 3, "shin%var(leg)");
+    line roles = ["hull", "torso", "main", "secondary", "aug1", "aug2"];
+    line kinds = [1, 1, 2, 2, 1, 1];
+    repeat (line i to partTotal(global mClass[c])) {
+        line look = partVisual(global mClass[c], line i - 1);
+        if (line i <= 6) {
+            spawnPart(at, line look[1] as str, line look[2] as num, line kinds[line i] as num, line roles[line i] as str);
+        } else {
+            line leg = num.floor((line i - 5) / 2);
+            if ((line i - 7) % 2 == 0) {
+                spawnPart(at, line look[1] as str, line look[2] as num, 3, "thigh%var(leg)");
+            } else {
+                spawnPart(at, line look[1] as str, line look[2] as num, 3, "shin%var(leg)");
+            }
+        }
     }
     global mPartCount.append(global mPartEnt.len() + 1 - global mPartStart[c]);
     global mDrawnPos.append(vec(0, -9999, 0));
@@ -217,21 +251,32 @@ function drawParts(c: num) {
     global mDrawnPos[c] = line base;
     global mDrawnYaw[c] = line yaw;
 
-    line f = global mF[c];
-    line sk = classSkeleton(global mClass[c]);
-    line lo = global mLoadout[c];
-    line hull = global mSize[c];
-    // mSize is (forward, up, side); boxes take (side, up, forward).
-    placePart(c, 0, toWorld(line base, line f, vec(0, line sk["ride"] as num, 0)), boxCols(line f, vec(line hull.z, line hull.y, line hull.x)));
-    placePart(c, 1, toWorld(line base, line f, line sk["torso"] as vec), boxCols(line f, line sk["torsoSize"] as vec));
+    line poses = skeletonPose(global mClass[c], global mLoadout[c], global mSize[c], line base, global mF[c], 1);
+    repeat (line i to line poses.len()) {
+        line pose = line poses[line i] as list;
+        placePart(c, line i - 1, line pose[1] as vec, [line pose[2], line pose[3], line pose[4]]);
+    }
+    global mBoundAt[c] = line base + vec(0, global mBoundUp[c], 0);
+}
 
+/** Every part's pose for class cls with loadout lo and hull size hull
+ * (mSize order), standing at ground point base facing f, scaled by s about
+ * base: [joint, column x, column y, column z] per part in display order.
+ * Legs stand in their rest pose. Mechs draw with s = 1; menu previews
+ * (ui/preview.tc) draw small copies. */
+function skeletonPose(cls: str, lo: dict, hull: vec, base: vec, f: vec, s: num): list {
+    line sk = classSkeleton(cls);
+    line out = [];
+    // hull is (forward, up, side); boxes take (side, up, forward).
+    line out.append(skelPart(base, toWorld(base, f, vec(0, line sk["ride"] as num, 0)), boxCols(f, vec(hull.z, hull.y, hull.x)), s));
+    line out.append(skelPart(base, toWorld(base, f, line sk["torso"] as vec), boxCols(f, line sk["torsoSize"] as vec), s));
     // Guns point along the hull until torso traverse (MEC-24) aims them.
-    line mainBox = partRow(line lo["main"] as str)["size"] as vec;
-    line secBox = partRow(line lo["secondary"] as str)["size"] as vec;
-    placePart(c, 2, toWorld(line base, line f, line sk["mainMount"] as vec), segCols(line f * line mainBox.z, line mainBox.x));
-    placePart(c, 3, toWorld(line base, line f, line sk["secMount"] as vec), segCols(line f * line secBox.z, line secBox.x));
-    placePart(c, 4, toWorld(line base, line f, augMount(c, 1)), boxCols(line f, partRow(line lo["aug1"] as str)["size"] as vec));
-    placePart(c, 5, toWorld(line base, line f, augMount(c, 2)), boxCols(line f, partRow(line lo["aug2"] as str)["size"] as vec));
+    line mainBox = partRow(lo["main"] as str)["size"] as vec;
+    line secBox = partRow(lo["secondary"] as str)["size"] as vec;
+    line out.append(skelPart(base, toWorld(base, f, line sk["mainMount"] as vec), segCols(f * line mainBox.z, line mainBox.x), s));
+    line out.append(skelPart(base, toWorld(base, f, line sk["secMount"] as vec), segCols(f * line secBox.z, line secBox.x), s));
+    line out.append(skelPart(base, toWorld(base, f, augMountOf(cls, hull, 1)), boxCols(f, partRow(lo["aug1"] as str)["size"] as vec), s));
+    line out.append(skelPart(base, toWorld(base, f, augMountOf(cls, hull, 2)), boxCols(f, partRow(lo["aug2"] as str)["size"] as vec), s));
 
     line hips = line sk["hips"] as list;
     line feet = line sk["feet"] as list;
@@ -239,13 +284,18 @@ function drawParts(c: num) {
     line shin = line sk["shin"] as num;
     line w = line sk["legW"] as num;
     line pl = line sk["pole"] as vec;
-    line pole = leftOf(line f) * line pl.x + vec(0, line pl.y, 0) + line f * line pl.z;
+    line pole = leftOf(f) * line pl.x + vec(0, line pl.y, 0) + f * line pl.z;
     repeat (line i to line hips.len()) {
-        line hip = toWorld(line base, line f, line hips[line i] as vec);
-        line foot = toWorld(line base, line f, line feet[line i] as vec);
+        line hip = toWorld(base, f, line hips[line i] as vec);
+        line foot = toWorld(base, f, line feet[line i] as vec);
         line knee = kneeOf(line hip, line foot, line thigh, line shin, line pole);
-        placePart(c, 4 + line i * 2, line hip, segCols(line knee - line hip, line w));
-        placePart(c, 5 + line i * 2, line knee, segCols(line foot - line knee, line w * 0.8));
+        line out.append(skelPart(base, line hip, segCols(line knee - line hip, line w), s));
+        line out.append(skelPart(base, line knee, segCols(line foot - line knee, line w * 0.8), s));
     }
-    global mBoundAt[c] = line base + vec(0, global mBoundUp[c], 0);
+    return line out;
+}
+
+/** One part's pose [joint, columns...] scaled by s about base. */
+function skelPart(base: vec, at: vec, cols: list, s: num): list {
+    return [base + (at - base) * s, (cols[1] as vec) * s, (cols[2] as vec) * s, (cols[3] as vec) * s];
 }

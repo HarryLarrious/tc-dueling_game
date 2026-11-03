@@ -581,8 +581,17 @@ translucent panels and a class cockpit frame (cockpit reference).
   `menuAction`, right click is "back", hotbar scroll is "scroll up/down".
   Screens are added in `menuScreen`; the main screen (`ui/mainscreen.tc`,
   MEC-73) has the top bar, map selector, PLAY, CUSTOMIZE and a text party
-  panel (3D party mechs wait for MEC-103), all within 230 canvas units of
-  the center so 4:3 windows show it. Found in game (2026-11-03):
+  panel with the player's mech in 3D, all within 230 canvas units of the
+  center so 4:3 windows show it.
+- **3D previews as built** (`ui/preview.tc` + `core/item.vsh`, MEC-103): a
+  `menuPreview` widget spawns a scaled copy of a loadout's skeleton
+  (`skeletonPose`, shared with the game's mechs) as private item displays
+  in front of the eye, full bright, turning 1.5° a tick. Preview tints have
+  the low 2 bits of red, green and blue set (game tints keep them clear,
+  `partVisual`); `core/item.vsh` then skips the camera rotation, projects
+  with a fixed 70° view and squeezes depth to 0.075–0.095 blocks so the
+  preview draws in front of every panel and behind the cursor. Fitted into
+  the widget's width and height. Found in game (2026-11-03):
   `setRotation` does not turn a player who rides a seat, so the canvas-edge
   clamp likely does nothing; the cursor just stops at the canvas edge in the
   shader (clamped there).

@@ -38,6 +38,21 @@ function menuLabel(id: str, text: str, font: str, x: num, y: num, palette: num):
     return {kind: "label", id: id, x: x, y: y, w: 0, h: 0, text: text, font: font, palette: palette, hover: palette, layer: -0.01, action: ""};
 }
 
+/** A preview widget: loadout lo's mech in 3D (ui/preview.tc), centered at
+ * x, y, fitted into w x h canvas units, turning. */
+function menuPreview(id: str, lo: dict, x: num, y: num, w: num, h: num): dict {
+    return {kind: "preview", id: id, x: x, y: y, w: w, h: h, text: "", font: "", palette: 0, hover: 0, layer: 0, action: "", lo: lo};
+}
+
+/** Removes a widget's displays (one display, or a preview's parts). */
+function menuRemoveWidget(w: dict) {
+    if (w["kind"] as str == "preview") {
+        previewRemove(w["preview"] as dict);
+    } else {
+        menuRemoveEnt(w["ent"] as str);
+    }
+}
+
 /** A button widget: a w x h panel with centered text that runs `action`
  * when clicked. */
 function menuButton(id: str, text: str, x: num, y: num, w: num, h: num, action: str): dict {
@@ -105,7 +120,7 @@ function menuOpen(id: str) {
     if (global menuOf.hasKeys(uuid)) {
         line st = global menuOf[uuid] as dict;
         for (line w of line st["widgets"] as list) {
-            menuRemoveEnt((line w as dict)["ent"] as str);
+            menuRemoveWidget(line w as dict);
         }
     } else {
         line spot = default.location;
@@ -130,14 +145,18 @@ function menuOpen(id: str) {
         selectedEntity.setDisplayTransformationMatrix([1, 0, 0, 0.06875, 0, 1, 0, -0.34375, 0, 0, 1, 0, 0, 0, 0, 1]);
         select reset;
         privAdd(uuid, line cursor);
-        line st = {seat: line seat, cursor: line cursor, eye: loc(line eye.x, line eye.y, line eye.z, 0, 0)};
+        line st = {seat: line seat, cursor: line cursor, eye: loc(line eye.x, line eye.y, line eye.z, 0, 0), eyeAt: vec(line eye.x, line eye.y, line eye.z)};
         start menuLoop;
     }
     line at = line st["eye"] as loc;
     line placed = [];
     for (line def of menuScreen(id)) {
         line w = line def as dict;
-        line w["ent"] = menuSpawnWidget(uuid, line at, line w);
+        if (line w["kind"] as str == "preview") {
+            line w["preview"] = previewSpawn(uuid, line st["eyeAt"] as vec, line w["lo"] as dict, line w["x"] as num, line w["y"] as num, 3, line w["w"] as num, line w["h"] as num, 200);
+        } else {
+            line w["ent"] = menuSpawnWidget(uuid, line at, line w);
+        }
         line placed.append(line w);
     }
     line st["screen"] = id;
@@ -155,7 +174,7 @@ function menuClose {
     line st = global menuOf[uuid] as dict;
     global menuOf.remove(uuid);
     for (line w of line st["widgets"] as list) {
-        menuRemoveEnt((line w as dict)["ent"] as str);
+        menuRemoveWidget(line w as dict);
     }
     menuRemoveEnt(line st["cursor"] as str);
     default.rideEntity();
@@ -233,6 +252,26 @@ function menuHoverTick {
     global menuOf[uuid] = line st;
 }
 
+/** Turns the player's menu previews a little (one turn per 12 s). */
+function menuPreviewTick {
+    line uuid = default.uuid;
+    line st = global menuOf[uuid] as dict;
+    line widgets = line st["widgets"] as list;
+    line changed = 0;
+    repeat (line i to line widgets.len()) {
+        line w = line widgets[line i] as dict;
+        if (line w["kind"] as str == "preview") {
+            line w["preview"] = previewTurn(line w["preview"] as dict, 1.5);
+            line widgets[line i] = line w;
+            line changed = 1;
+        }
+    }
+    if (line changed == 1) {
+        line st["widgets"] = line widgets;
+        global menuOf[uuid] = line st;
+    }
+}
+
 /** Keeps the camera inside the canvas (a 16:9 canvas is 640 x 360 units:
  * yaw within +-78, pitch within +-43 degrees). */
 function menuClampView {
@@ -259,6 +298,7 @@ process menuLoop {
         }
         menuClampView();
         menuHoverTick();
+        menuPreviewTick();
         wait;
     }
 }

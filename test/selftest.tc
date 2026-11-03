@@ -271,7 +271,10 @@ function runSelfTest {
     // points (a seated player cannot be turned with setRotation), clicks.
     menuOpen("main");
     checkNum("menu open", menuIsOpen(line me), 1, 0);
-    checkNum("main screen widgets", ((global menuOf[line me] as dict)["widgets"] as list).len(), 19, 0);
+    checkNum("main screen widgets", ((global menuOf[line me] as dict)["widgets"] as list).len(), 20, 0);
+    line prevW = ((global menuOf[line me] as dict)["widgets"] as list)[16] as dict;
+    checkStr("party preview widget", prevW["kind"] as str, "preview");
+    checkNum("preview has every part", ((prevW["preview"] as dict)["ents"] as list).len(), partTotal(playerLoadout()["cls"] as str), 0);
     checkStr("hit play", menuHitAt(vec(0 - 150, 45, 0)), "play");
     checkStr("hit settings", menuHitAt(vec(0 - 125, 0 - 160, 0)), "settings");
     checkStr("hit nothing", menuHitAt(vec(0, 100, 0)), "");
