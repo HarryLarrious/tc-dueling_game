@@ -1,0 +1,182 @@
+// Part loss (PLAN.md, Damage): what a mech can still do after losing parts,
+// and debris for parts shot off. partDestroyed (combat/damage.tc) calls
+// partLost; the effects are flags in one dict per mech that the systems
+// read:
+//   legsLeft  legs with thigh and shin intact
+//   mobility  0..1 speed factor. Walker/sprinter: 0 after one lost leg.
+//             Crawler: (legsLeft - 3) / 3, so 3 left = immobile. Spider: 4
+//             legs 1, 3 legs 0.6, 2 or fewer 0.
+//   climb     1 while a spider has all 4 legs (MEC-45)
+//   mainOk, secOk   the gun can fire (MEC-42); armed = either
+//   torsoLocked     1 = no traverse, aim by turning the hull (MEC-24)
+//   aug1Ok, aug2Ok  the augment works (MEC-46)
+// Losing a thigh takes its shin with it; losing a shin leaves the thigh as a
+// stump. A lost part's display becomes debris: it is thrown outward and up,
+// spins, bounces off the floor and is removed after about a second. Damaged
+// model variants come with the final models (MEC-82/86).
+
+/** Loss state of each mech (see the file comment). */
+declare global mLoss: list[dict];
+/** Debris in flight: display, position, velocity (blocks per tick), spin
+ * axis, matrix columns, ticks left. */
+declare global dbEnt: list[str];
+declare global dbPos: list[vec];
+declare global dbVel: list[vec];
+declare global dbAxis: list[vec];
+declare global dbX: list[vec];
+declare global dbY: list[vec];
+declare global dbZ: list[vec];
+declare global dbTicks: list[num];
+
+/** Loss state of an intact mech c. */
+function addLossState(c: num) {
+    line legs = (classSkeleton(global mClass[c])["hips"] as list).len();
+    global mLoss.append({
+        legsLeft: line legs, mobility: 1, climb: partNum(global mClass[c], "climbs"),
+        mainOk: 1, secOk: 1, armed: 1, torsoLocked: 0, aug1Ok: 1, aug2Ok: 1
+    });
+}
+
+/** 1 when part i (0 = hull) of mech c still has HP. */
+function partIntact(c: num, i: num): num {
+    if (global hbHp[global mPartStart[c] + i] > 0) {
+        return 1;
+    }
+    return 0;
+}
+
+/** Recomputes mech c's loss state from which parts are intact. */
+function updateLoss(c: num) {
+    line cls = global mClass[c];
+    line legs = (classSkeleton(line cls)["hips"] as list).len();
+    line left = 0;
+    repeat (line leg to line legs) {
+        if (partIntact(c, 4 + line leg * 2) == 1 && partIntact(c, 5 + line leg * 2) == 1) {
+            line left += 1;
+        }
+    }
+    line mobility = 1;
+    if (line cls == "crawler") {
+        line mobility = num.max((line left - 3) / 3, 0);
+    } else if (line cls == "spider") {
+        if (line left <= 2) {
+            line mobility = 0;
+        } else if (line left == 3) {
+            line mobility = 0.6;
+        }
+    } else if (line left < line legs) {
+        line mobility = 0;
+    }
+    line climb = 0;
+    if (partNum(line cls, "climbs") == 1 && line left == line legs) {
+        line climb = 1;
+    }
+    line mainOk = partIntact(c, 2);
+    line secOk = partIntact(c, 3);
+    line armed = 0;
+    if (line mainOk == 1 || line secOk == 1) {
+        line armed = 1;
+    }
+    global mLoss[c] = {
+        legsLeft: line left, mobility: line mobility, climb: line climb,
+        mainOk: line mainOk, secOk: line secOk, armed: line armed,
+        torsoLocked: 1 - partIntact(c, 1), aug1Ok: partIntact(c, 4), aug2Ok: partIntact(c, 5)
+    };
+}
+
+/** Part `part` of mech c was just destroyed: a lost thigh takes its shin,
+ * the display becomes debris, and the loss state is updated. The hull is
+ * left to mech destruction (MEC-38). */
+function partLost(c: num, part: num) {
+    if (part >= 6 && (part - 6) % 2 == 0 && partIntact(c, part + 1) == 1) {
+        global hbHp[global mPartStart[c] + part + 1] = 0;
+        partDestroyed(c, part + 1);
+    }
+    if (part != 0) {
+        throwDebris(c, part);
+    }
+    updateLoss(c);
+}
+
+/** Turns part `part` of mech c into debris: thrown out from the mech's
+ * center and up, spinning. The mech stops drawing it (placePart skips
+ * destroyed parts). */
+function throwDebris(c: num, part: num) {
+    line k = global mPartStart[c] + part;
+    line out = hitboxCenter(line k) - global mBoundAt[c];
+    line flat = vec(line out.x, 0, line out.z);
+    if (line flat.len() < 0.01) {
+        line flat = global mF[c];
+    }
+    global dbEnt.append(global mPartEnt[line k]);
+    global dbPos.append(global hbAt[line k]);
+    global dbVel.append(line flat.setLength(0.15) + vec(num.randomd(-0.05, 0.05), 0.3, num.randomd(-0.05, 0.05)));
+    global dbAxis.append(vec(num.randomd(-1, 1), num.randomd(-1, 1), num.randomd(-1, 1)) + vec(0.01, 0, 0));
+    global dbX.append(global hbX[line k]);
+    global dbY.append(global hbY[line k]);
+    global dbZ.append(global hbZ[line k]);
+    global dbTicks.append(24);
+    select entitiesByName(global mPartEnt[line k]);
+    selectedEntity.setDisplayTeleportDuration(2);
+    select reset;
+}
+
+/** Advances every debris piece one tick: gravity, a damped bounce on the
+ * floor, spin, a display write every 2 ticks; removes it when time is up. */
+function debrisTick {
+    line i = global dbEnt.len();
+    while (line i >= 1) {
+        global dbTicks[line i] = global dbTicks[line i] - 1;
+        if (global dbTicks[line i] <= 0) {
+            select entitiesByName(global dbEnt[line i]);
+            selectedEntity.remove();
+            select reset;
+            global dbEnt.remove(line i);
+            global dbPos.remove(line i);
+            global dbVel.remove(line i);
+            global dbAxis.remove(line i);
+            global dbX.remove(line i);
+            global dbY.remove(line i);
+            global dbZ.remove(line i);
+            global dbTicks.remove(line i);
+        } else {
+            line v = global dbVel[line i] - vec(0, 0.04, 0);
+            line p = global dbPos[line i] + line v;
+            if (line p.y < global floorY) {
+                line p = vec(line p.x, global floorY, line p.z);
+                line v = vec(line v.x * 0.5, 0 - line v.y * 0.3, line v.z * 0.5);
+            }
+            global dbVel[line i] = line v;
+            global dbPos[line i] = line p;
+            line axis = global dbAxis[line i];
+            global dbX[line i] = global dbX[line i].rotateAroundVec(line axis, 18);
+            global dbY[line i] = global dbY[line i].rotateAroundVec(line axis, 18);
+            global dbZ[line i] = global dbZ[line i].rotateAroundVec(line axis, 18);
+            if (global dbTicks[line i] % 2 == 0) {
+                select entitiesByName(global dbEnt[line i]);
+                selectedEntity.teleport(loc(line p.x, line p.y, line p.z));
+                selectedEntity.setDisplayTransformationMatrix(columnsMatrix(global dbX[line i], global dbY[line i], global dbZ[line i]));
+                selectedEntity.setDisplayInterpolation(2, 0);
+                select reset;
+            }
+        }
+        line i -= 1;
+    }
+}
+
+/** Removes all debris at once (clearing mechs). */
+function clearDebris {
+    for (line ent of global dbEnt) {
+        select entitiesByName(line ent as str);
+        selectedEntity.remove();
+        select reset;
+    }
+    global dbEnt = [];
+    global dbPos = [];
+    global dbVel = [];
+    global dbAxis = [];
+    global dbX = [];
+    global dbY = [];
+    global dbZ = [];
+    global dbTicks = [];
+}

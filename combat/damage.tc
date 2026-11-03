@@ -93,9 +93,9 @@ function splashHit(at: vec, radius: num, amount: num, push: num): num {
     return line total;
 }
 
-/** Part `part` of mech c just reached 0 HP: its hitbox stops taking hits.
- * Part-loss effects per class and debris (MEC-37) and mech destruction when
- * the hull goes (MEC-38) hook in here. */
+/** Part `part` of mech c just reached 0 HP: its hitbox stops taking hits
+ * and the part-loss effects and debris run (partLost, combat/loss.tc). Mech
+ * destruction when the hull goes (MEC-38) hooks in here. */
 function partDestroyed(c: num, part: num) {
     line k = global mPartStart[c] + part;
     global hbKind[line k] = 0;
@@ -103,6 +103,7 @@ function partDestroyed(c: num, part: num) {
     select playersByName(global mDriver[c]);
     selected.sendMessage(s"<red>Your <white>%var(role)</white> was destroyed.");
     select reset;
+    partLost(c, part);
 }
 
 /** @hp [mech]: lists the HP of every part of a mech (default: yours or the

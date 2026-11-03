@@ -52,6 +52,16 @@ function testPlace(c: num, base: vec, yaw: num) {
     drawMech(c);
 }
 
+/** Number field of mech c's loss state (combat/loss.tc). */
+function lossNum(c: num, key: str): num {
+    return (global mLoss[c])[key] as num;
+}
+
+/** Destroys part i of mech c outright. */
+function testKill(c: num, i: num) {
+    applyHit(c, i, 100000, vec(0, 0, 0));
+}
+
 /** Role of the first part hit by segment base + a -> base + b, or "none". */
 function testRay(base: vec, a: vec, b: vec): str {
     line hit = segmentHit(base + a, base + b, 0);
@@ -100,6 +110,24 @@ function runSelfTest {
     checkNum("shin1 destroyed deals its hp", applyHit(line w, 7, 10000, vec(0, 0, 0)), 132, 0.01);
     checkNum("destroyed part takes nothing", applyHit(line w, 7, 100, vec(0, 0, 0)), 0, 0);
     checkStr("ray passes destroyed shin1 to shin2", testRay(line base, vec(10, 0.48, -0.39), vec(-10, 0.48, -0.39)), "shin2");
+
+    // Part loss (MEC-37): a walker with a lost leg is immobile but armed.
+    checkNum("walker legs left", lossNum(line w, "legsLeft"), 1, 0);
+    checkNum("walker one leg lost immobile", lossNum(line w, "mobility"), 0, 0);
+    checkNum("lost shin is debris", global dbEnt.len(), 1, 0);
+    testKill(line w, 8);
+    checkNum("lost thigh takes its shin", global hbHp[global mPartStart[line w] + 9], 0, 0);
+    checkNum("walker no legs", lossNum(line w, "legsLeft"), 0, 0);
+    testKill(line w, 2);
+    checkNum("main gun lost", lossNum(line w, "mainOk"), 0, 0);
+    checkNum("still armed with secondary", lossNum(line w, "armed"), 1, 0);
+    testKill(line w, 3);
+    checkNum("both guns lost disarmed", lossNum(line w, "armed"), 0, 0);
+    testKill(line w, 1);
+    checkNum("torso lost locks", lossNum(line w, "torsoLocked"), 1, 0);
+    testKill(line w, 4);
+    checkNum("augment 1 lost", lossNum(line w, "aug1Ok"), 0, 0);
+    checkNum("augment 2 kept", lossNum(line w, "aug2Ok"), 1, 0);
     // Splash radius 1 at the hull center reaches only the hull: 100 * 0.9.
     checkNum("splash at hull center", splashHit(line base + vec(0, 2.6, 0), 1, 100, 0), 90, 0.01);
     checkNum("hull hp after splash", global hbHp[global mPartStart[line w]], 260, 0.01);
@@ -119,6 +147,30 @@ function runSelfTest {
         }
         checkNum("%var(cls) parts", global mPartCount[global mCount], line want, 0);
     }
+
+    // Leg loss per class: crawler slows per leg, spider stops climbing.
+    line crawler = global mCount - 1;
+    line spider = global mCount;
+    testKill(line crawler, 7);
+    checkNum("crawler 5 legs slower", lossNum(line crawler, "mobility"), 0.667, 0.01);
+    testKill(line crawler, 9);
+    testKill(line crawler, 11);
+    checkNum("crawler 3 legs immobile", lossNum(line crawler, "mobility"), 0, 0);
+    checkNum("spider climbs when whole", lossNum(line spider, "climb"), 1, 0);
+    testKill(line spider, 7);
+    checkNum("spider 3 legs can't climb", lossNum(line spider, "climb"), 0, 0);
+    checkNum("spider 3 legs slower", lossNum(line spider, "mobility"), 0.6, 0.001);
+    testKill(line spider, 9);
+    checkNum("spider 2 legs immobile", lossNum(line spider, "mobility"), 0, 0);
+
+    // The mech loop is running (it moves debris), then debris lands and is
+    // removed after about a second.
+    ensureLoop();
+    wait(5);
+    line beat = game.ticksSinceStartup - global lastBeat;
+    checkNum("mech loop running", line beat, 0, 2);
+    wait(30);
+    checkNum("debris cleaned up", global dbEnt.len(), 0, 0);
 
     clearMechs();
     line passed = global testPass;

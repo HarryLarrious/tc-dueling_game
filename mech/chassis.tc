@@ -99,7 +99,8 @@ function driveTick(c: num) {
     // Kinematic movement: pos += f*mv + r*ms, tick-scaled power.
     line f = global mF[line c];
     line r = vec(0 - line f.z, 0, line f.x);
-    line step = global mechPower * 0.05;
+    // Lost legs slow or stop the mech (mobility, combat/loss.tc).
+    line step = global mechPower * 0.05 * ((global mLoss[line c])["mobility"] as num);
     line pos = global mPos[line c] + f * line fwd * line step + line r * line side * line step;
     pos.y = global floorY + global mechHover;
     global mPos[line c] = pos;

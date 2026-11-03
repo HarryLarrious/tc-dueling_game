@@ -171,12 +171,17 @@ function spawnParts(c: num) {
     global mSeatUp.append(line top + 0.3 - 2.2);
     addBound(c, line top);
     addDamageState(c);
+    addLossState(c);
 }
 
 /** Moves part i of mech c to world point at with matrix columns cols, and
- * records its hitbox there. */
+ * records its hitbox there. Destroyed parts are skipped. */
 function placePart(c: num, i: num, at: vec, cols: list) {
     line k = global mPartStart[c] + i;
+    // Destroyed parts are debris now (combat/loss.tc).
+    if (global hbHp[line k] <= 0) {
+        return;
+    }
     line c0 = cols[1] as vec;
     line c1 = cols[2] as vec;
     line c2 = cols[3] as vec;

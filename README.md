@@ -26,6 +26,7 @@ class skeletons of placeholder parts, `@cpu` gauge). Next: the Stage 1 spikes in
 | `mech/loadout.tc` | Loadouts: validation, defaults, derived stats, `@loadout` |
 | `spike/cpu.tc`, `spike/pack.tc` | Stage 1 spikes: CPU test rigs (`@spike`), pack tests (`@pack @hud @menu @model @beep @fx @outline`); removed by MEC-23 |
 | `combat/damage.tc` | `applyHit` damage funnel: armor reduction, part HP, splash, impulses; `@hp @splash` |
+| `combat/loss.tc` | Part-loss effects per class (mobility, guns, torso lock, augments) and debris |
 | `combat/hitbox.tc` | Part hitboxes (boxes and leg capsules from the drawn displays), segment and splash queries, `@hitbox @hit` |
 | `game/ ui/ maps/` | Empty until their stages |
 | `pack/` | Resource pack source (`pack.mcmeta`, `assets/`; `src/` for Blockbench files and asset generators, not shipped) |

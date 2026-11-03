@@ -321,6 +321,17 @@ ballistic arc (~1 s), then is removed.
 
 - **Feedback**: the HUD damage schema, a hit marker that names the part hit,
   debris for lost parts, sparks and smoke on low-HP parts.
+- **Loss state as built** (`combat/loss.tc`, MEC-37): `mLoss[mech]` holds
+  `legsLeft`, `mobility` (0..1 speed factor), `climb`, `mainOk`, `secOk`,
+  `armed`, `torsoLocked`, `aug1Ok`, `aug2Ok`, recomputed when a part is
+  lost. Movement multiplies its step by `mobility`; firing (MEC-42), torso
+  traverse (MEC-24), augments (MEC-46) and climbing (MEC-45) read the rest.
+  Mobility: walker and sprinter 0 after one lost leg (both can still
+  shoot); crawler (legsLeft − 3) ÷ 3; spider 1 / 0.6 / 0 at 4 / 3 / ≤2
+  legs, climbing only with all 4. A lost thigh takes its shin; a lost shin
+  leaves the thigh. Debris is the part's own display: thrown out and up,
+  spinning, bouncing on the floor, written every 2 ticks, removed after 24
+  ticks. Damaged model variants wait for the final models (MEC-82/86).
 
 ## Modes and map
 
