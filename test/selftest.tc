@@ -1,0 +1,136 @@
+// Automated self-test (MEC-100): runs when a player enters play mode (while
+// selfTestOnJoin() is 1) or on @selftest, and prints one chat line per check:
+// "MECHTEST PASS <name>" or "MECHTEST FAIL <name> got <x> want <y>", then
+// "MECHTEST DONE <passed> passed <failed> failed". Chat lands in the client
+// log, so tests run and read back without anyone typing. The test clears all
+// mechs before and after. New features add their checks here.
+
+/** Checks passed and failed in the current run. */
+declare global testPass: num;
+declare global testFail: num;
+
+/** 1 = run the self-test whenever a player joins (enters play mode). */
+function selfTestOnJoin(): num {
+    return 1;
+}
+
+/** Records one check. */
+function check(name: str, ok: num, got: str, want: str) {
+    if (ok == 1) {
+        global testPass += 1;
+        default.sendMessage(s"<green>MECHTEST PASS %var(name)");
+    } else {
+        global testFail += 1;
+        default.sendMessage(s"<red>MECHTEST FAIL %var(name) got %var(got) want %var(want)");
+    }
+}
+
+/** Checks a number is within tol of want. */
+function checkNum(name: str, got: num, want: num, tol: num) {
+    line ok = 0;
+    if (num.abs(got - want) <= tol) {
+        line ok = 1;
+    }
+    check(name, line ok, "%var(got)", "%var(want)");
+}
+
+/** Checks two strings are equal. */
+function checkStr(name: str, got: str, want: str) {
+    line ok = 0;
+    if (got == want) {
+        line ok = 1;
+    }
+    check(name, line ok, got, want);
+}
+
+/** Puts mech c at ground point base facing yaw and redraws it (parts and
+ * hitboxes). */
+function testPlace(c: num, base: vec, yaw: num) {
+    global mPos[c] = base + vec(0, global mechHover, 0);
+    global mYaw[c] = yaw;
+    global mF[c] = yawToVec(yaw);
+    drawMech(c);
+}
+
+/** Role of the first part hit by segment base + a -> base + b, or "none". */
+function testRay(base: vec, a: vec, b: vec): str {
+    line hit = segmentHit(base + a, base + b, 0);
+    line c = line hit["mech"] as num;
+    if (line c == 0) {
+        return "none";
+    }
+    return global mPartRole[global mPartStart[line c] + (line hit["part"] as num)];
+}
+
+/** Runs every check. */
+function runSelfTest {
+    global testPass = 0;
+    global testFail = 0;
+    default.sendMessage(s"<gold>MECHTEST BEGIN");
+    clearMechs();
+    ensureFloor();
+    ensureCatalog();
+
+    // Catalog and loadouts.
+    checkNum("catalog walker hp", partNum("walker", "hp"), 400, 0);
+    line walkerLo = defaultLoadout("walker");
+    checkStr("walker default main", walkerLo["main"] as str, "railgun");
+    checkStr("walker default armor", walkerLo["armor"] as str, "armor_light");
+    checkStr("spider default main", defaultLoadout("spider")["main"] as str, "lmg");
+    line st = deriveStats(line walkerLo);
+    checkNum("walker hull hp", st["hullHp"] as num, 440, 0.01);
+    checkNum("walker reduction", st["reduction"] as num, 0.1, 0.001);
+
+    // One walker at the arena center, facing +z (left = +x).
+    line base = vec(global arenaX, global floorY, global arenaZ);
+    spawnMech(line walkerLo);
+    line w = global mCount;
+    testPlace(line w, line base, 0);
+    checkNum("walker parts", global mPartCount[line w], 10, 0);
+
+    // Hitbox rays: hull from the front, the gap between the feet, a shin from
+    // the left (shin 1 is the left leg, midpoint about (0.86, 0.48, -0.39)).
+    checkStr("ray front hits hull", testRay(line base, vec(0, 2.6, 10), vec(0, 2.6, -10)), "hull");
+    checkStr("ray between feet misses", testRay(line base, vec(0, 0.3, 10), vec(0, 0.3, -10)), "none");
+    checkStr("ray from left hits shin1", testRay(line base, vec(10, 0.48, -0.39), vec(-10, 0.48, -0.39)), "shin1");
+
+    // Damage: 10% armor; shin HP = 400 * 0.3 * 1.1 = 132.
+    checkNum("hit hull 100 deals 90", applyHit(line w, 0, 100, vec(0, 0, 0)), 90, 0.01);
+    checkNum("hull hp after hit", global hbHp[global mPartStart[line w]], 350, 0.01);
+    checkNum("shin1 destroyed deals its hp", applyHit(line w, 7, 10000, vec(0, 0, 0)), 132, 0.01);
+    checkNum("destroyed part takes nothing", applyHit(line w, 7, 100, vec(0, 0, 0)), 0, 0);
+    checkStr("ray passes destroyed shin1 to shin2", testRay(line base, vec(10, 0.48, -0.39), vec(-10, 0.48, -0.39)), "shin2");
+    // Splash radius 1 at the hull center reaches only the hull: 100 * 0.9.
+    checkNum("splash at hull center", splashHit(line base + vec(0, 2.6, 0), 1, 100, 0), 90, 0.01);
+    checkNum("hull hp after splash", global hbHp[global mPartStart[line w]], 260, 0.01);
+
+    // Turned to yaw 90 (facing -x), the hull is hit from -x.
+    testPlace(line w, line base, 90);
+    checkStr("turned ray hits hull", testRay(line base, vec(-10, 2.6, 0), vec(10, 2.6, 0)), "hull");
+
+    // Part counts per class.
+    for (line cls of ["sprinter", "crawler", "spider"]) {
+        spawnMech(defaultLoadout(line cls as str));
+        line want = 10;
+        if (line cls as str == "crawler") {
+            line want = 18;
+        } else if (line cls as str == "spider") {
+            line want = 14;
+        }
+        checkNum("%var(cls) parts", global mPartCount[global mCount], line want, 0);
+    }
+
+    clearMechs();
+    line passed = global testPass;
+    line failed = global testFail;
+    default.sendMessage(s"<gold>MECHTEST DONE %var(passed) passed %var(failed) failed");
+}
+
+/** Join hook: runs the self-test a second after the player enters play
+ * mode, when selfTestOnJoin() is 1. */
+function selfTestJoin {
+    if (selfTestOnJoin() == 1) {
+        wait(20);
+        runSelfTest();
+    }
+}

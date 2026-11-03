@@ -131,7 +131,7 @@ function argNum(parts: list, index: num, fallback: num): num {
     return num.parse(parts[index] as str);
 }
 
-/** Chat commands: @mech @loadout @sit @clear @cpu @floor @spike @parts @hitbox @hit @hp @splash @help, and the
+/** Chat commands: @mech @loadout @sit @clear @cpu @floor @spike @parts @hitbox @hit @hp @splash @selftest @help, and the
  * pack spike: @pack @hud @menu @model @beep @fx @outline. */
 playerevent command {
     ensureInitialized();
@@ -176,6 +176,9 @@ playerevent command {
         hitboxCommand(line parts);
     } else if (line cmd == "hit") {
         hitCommand(line parts);
+    } else if (line cmd == "selftest") {
+        ensureLoop();
+        runSelfTest();
     } else if (line cmd == "hp") {
         hpCommand(line parts);
     } else if (line cmd == "splash") {
@@ -214,6 +217,7 @@ function mechHelp {
     default.sendMessage(s"<yellow>@hit [damage]</yellow> <gray>test a ray from your eye against mech hitboxes, optionally damaging the part");
     default.sendMessage(s"<yellow>@hp [mech]</yellow> <gray>list a mech's part HP");
     default.sendMessage(s"<yellow>@splash [damage] [radius]</yellow> <gray>splash damage where your eye ray ends");
+    default.sendMessage(s"<yellow>@selftest</yellow> <gray>run the automated checks (clears all mechs)");
     default.sendMessage(s"<gold><bold>Pack spike</bold>");
     default.sendMessage(s"<yellow>@pack [url|status|clear]</yellow> <gray>send the pack, check it, or remove spike entities");
     default.sendMessage(s"<yellow>@hud [anchor] [palette] | grid | text | off</yellow> <gray>marked glyph or UI text on boss bar 1");
@@ -230,6 +234,7 @@ playerevent join {
     ensureLoop();
     packJoin();
     default.sendMessage(s"<gold>Mechs <gray>- type <yellow>@help</yellow> for commands.");
+    selfTestJoin();
 }
 
 playerevent dismount {

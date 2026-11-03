@@ -19,7 +19,7 @@ class skeletons of placeholder parts, `@cpu` gauge). Next: the Stage 1 spikes in
 | --- | --- |
 | `core/state.tc` | Mech and world state declarations + tunables |
 | `core/loop.tc` | Main loop: per-tick drive, push-out, draw |
-| `core/commands.tc` | `@mech @loadout @sit @clear @cpu @floor @parts @hitbox @hit @hp @splash @help`, the pack spike commands, boarding |
+| `core/commands.tc` | `@mech @loadout @sit @clear @cpu @floor @parts @hitbox @hit @hp @splash @selftest @help`, the pack spike commands, boarding |
 | `mech/chassis.tc` | Spawn a mech from a loadout, drive, push-out, draw |
 | `mech/skeleton.tc` | Class skeletons: placeholder part displays, right-handed part matrices, two-bone knee solve |
 | `mech/catalog.tc` | Part catalog: one row per prebuilt part (classes, guns, armor, augments, cosmetics), `@parts` |
@@ -30,6 +30,8 @@ class skeletons of placeholder parts, `@cpu` gauge). Next: the Stage 1 spikes in
 | `game/ ui/ maps/` | Empty until their stages |
 | `pack/` | Resource pack source (`pack.mcmeta`, `assets/`; `src/` for Blockbench files and asset generators, not shipped) |
 | `pack/assets/minecraft/shaders/core/text.vsh`, `pack/assets/mech/shaders/include/ui.glsl` | Text shader: HUD glyphs, screen-locked menu panels, cursor (marker protocol in PLAN.md, UI and HUD) |
+| `test/selftest.tc` | Automated self-test: runs on join (entering play mode) and `@selftest`, prints `MECHTEST` lines |
+| `tools/read_selftest.sh` | Switch to play (or any command), wait for the self-test, print its result from the client log |
 | `tools/build_pack.py` | Validate the pack, compile its shaders, build `build/mech-pack-<hash>.zip`, publish to `pack-dist` |
 | `tools/shader_variants.json` | Define sets each overridden shader must compile under |
 | `references/` | Mech, weapon and UI art, controls, augments, movement videos |
