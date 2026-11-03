@@ -57,10 +57,11 @@ pattern, the `@cpu` gauge.
   part upgrades. Cosmetic credits are only bought, through DF plot products.
 - **UI ignores FOV and GUI scale and takes mouse input.** A core shader in the
   pack draws it on a fixed virtual canvas (see UI and HUD).
-- **High-resolution look, not Minecraft.** UI art, fonts and model textures
-  are high resolution and anti-aliased, sampled smooth by our shaders; no
-  pixel art and nothing that reads as a Minecraft game (see UI and HUD, Art
-  quality).
+- **The UI does not look like Minecraft.** UI art and fonts are high
+  resolution and anti-aliased, sampled smooth by our shaders; no pixel art
+  (see UI and HUD, Art quality). The world is built maps and may look like
+  Minecraft (owner, 2026-11-02: "only UI elements need to look like not
+  Minecraft").
 - **The client does the visual work.** Anything purely visual runs on the
   client through the resource pack, core shaders and post effects (see
   Client-side tech). The server computes gameplay state and sends only
@@ -365,8 +366,9 @@ translucent panels and a class cockpit frame (cockpit reference).
 **How it is drawn**
 
 - All UI art is font glyphs (PNG bitmaps) and models in the pack.
-- **Art quality** (owner, 2026-11-02: "high resolution and high quality,
-  something that doesn't look like a Minecraft game"):
+- **Art quality** for UI (owner, 2026-11-02: "high resolution and high
+  quality, something that doesn't look like a Minecraft game", later
+  narrowed to UI elements only):
   - Glyph art is drawn anti-aliased (rendered 4× and downsampled with
     premultiplied alpha) at about 4–8 texels per canvas unit: at 1440p one
     canvas unit is 4 screen pixels, at 4K 6.
@@ -380,13 +382,26 @@ translucent panels and a class cockpit frame (cockpit reference).
     glyphs itself: bilinear when magnified, a 4-tap footprint average when
     shrunk, on premultiplied colors (no dark fringes). Unmarked text samples
     as vanilla.
-  - Mech parts (MEC-19): textures at 16 texels per model unit (256×256 for
-    a 16-unit part), sampled the same filtered way by `core/item.fsh`, and
-    lit per pixel: sky/ground ambient, a warm wrapped key light, a small
-    specular highlight and a cool rim, still multiplied by the lightmap. GUI
-    items (orthographic projection) stay vanilla.
-  - Still Minecraft-looking, with a ticket: the default font for UI text
-    (needs a high-resolution TTF font, MEC-97).
+  - **UI text** (MEC-97): Rajdhani SemiBold (SIL OFL 1.1, license shipped as
+    `assets/mech/font/rajdhani-ofl.txt`) in three TTF fonts, all
+    `oversample` 4 (about 1:1 at 1440p):
+
+    | Font | Size (canvas units) | Use |
+    | --- | --- | --- |
+    | `mech:text_s` | 7 | small labels, status words |
+    | `mech:text` | 10 | readouts, menu labels |
+    | `mech:text_l` | 16 | big numbers |
+
+    TTF glyphs are grayscale, so they go through the `IS_GRAYSCALE` text
+    variants and the shared filter reads them as `.rrrr`. Text only gets
+    the smooth sampling and canvas placement when it carries a marker color.
+    The plot's chat and other unmarked text keep Minecraft's font (MEC-98).
+    Verified on Plot 206003 (2026-11-02): smooth at GUI scale 1–4, HUD
+    readout (`@hud text`) and menu label (`@menu`) placed correctly.
+  - Mech parts (MEC-19, optional now that only the UI must not look like
+    Minecraft): textures at 16 texels per model unit, sampled filtered by
+    `core/item.fsh` and lit per pixel (sky/ground ambient, a wrapped key
+    light, specular and rim, times the lightmap). GUI items stay vanilla.
 - A **core shader** recognizes marked UI elements and places them on one
   *virtual canvas* scaled to the window height. It cancels the GUI scale and
   uses its own fixed projection instead of the player's FOV, so size and
@@ -633,8 +648,8 @@ the marker carries the choice.
   bright) or 251 (full bright, pulsing). Any alpha other than 0 or 255 inside a face's UV area sends that
   whole face to the translucent item pipeline (`FaceBakery`), so marked pixels
   go on their own small faces and the rest of the part stays cutout.
-- **Textures** are high resolution (16 texels per model unit) and sampled
-  filtered, so keep UV islands at least 2 texels apart and 2 texels from the
+- **Textures** may be high resolution (16 texels per model unit) and are
+  sampled filtered, so keep UV islands at least 2 texels apart and 2 texels from the
   texture edge, with their edge colors extended into that gap: a filtered
   sample at a face edge then never picks up a neighbouring island or the
   next sprite in the atlas.
