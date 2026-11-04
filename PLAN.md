@@ -365,6 +365,17 @@ ballistic arc (~1 s), then is removed.
 
 - **Parties**: 1–5 players. Parties queue together and always fight on the
   same side; every other party is hostile. Mixed sizes share one map.
+  As built (MEC-77, `game/party.tc`): a solo player has no party entry; the
+  first invite starts one. Invites go by name (the main screen's INVITE or
+  PARTY button opens a DF dialog with a name box; `@party invite <name>`),
+  stay open 60 s, and are answered from a banner on the main screen or with
+  `@party accept / decline`. The first member leads and only the leader
+  queues or removes members (`@party kick`); a leader who leaves hands the
+  lead to the next member, and a party left with one member is disbanded.
+  Leaving the plot leaves the party. Parties are server state (not saved).
+  `allied(a, b)` is the friend test for matches; the party id carries the
+  outline filter (MEC-60). A party change marks each member's menu dirty
+  (`menuDirty`) and their menu loop rebuilds the screen.
 - **The map**: one large map built on the plot (300×300, shared with the menu
   room). It has insertion points spread around the edge, extraction zones,
   cover, tall flat walls for spiders, an AI-mech waypoint graph, and a
@@ -606,9 +617,11 @@ translucent panels and a class cockpit frame (cockpit reference).
   firing for MEC-42): left click runs the hovered button's action in
   `menuAction`, right click is "back", hotbar scroll is "scroll up/down".
   Screens are added in `menuScreen`; the main screen (`ui/mainscreen.tc`,
-  MEC-73) has the top bar, map selector, PLAY, CUSTOMIZE and a text party
-  panel with the player's mech in 3D, all within 230 canvas units of the
-  center so 4:3 windows show it.
+  MEC-73) has the top bar, map selector, PLAY, CUSTOMIZE and the party
+  panel (MEC-77: every member's mech in 3D side by side with their name, you
+  in cyan and the leader in amber, INVITE and LEAVE, and an invite banner
+  under the top bar), all within 230 canvas units of the center so 4:3
+  windows show it.
 - **3D previews as built** (`ui/preview.tc` + `core/item.vsh`, MEC-103): a
   `menuPreview` widget spawns a scaled copy of a loadout's skeleton
   (`skeletonPose`, shared with the game's mechs) as private item displays

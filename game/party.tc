@@ -1,0 +1,283 @@
+// Parties (MEC-77): 1-5 players who queue together, are allied in matches
+// and see each other's outlines (MEC-60). A solo player has no entry; a
+// party starts when someone invites. Invites go by name (a DF dialog from
+// the main screen's INVITE button, or @party invite <name>), last 60 s, and
+// are answered from the main screen or with @party accept / decline. The
+// first member leads: only the leader queues (MEC-74). A leader who leaves
+// hands the lead to the next member; a party of one is disbanded. Parties
+// live only while their members are on the plot.
+
+/** Party id per player (uuid -> id; missing = solo). */
+declare global partyOf: dict;
+/** Members per party ("<id>" -> list of uuids, leader first). */
+declare global partyList: dict;
+/** Last party id handed out. */
+declare global partyNext: num;
+/** Pending invites (invitee uuid -> {party, from, until}). */
+declare global partyInvite: dict;
+/** Names of players on the plot (uuid -> name), for invites and the party
+ * display. */
+declare global playerNames: dict;
+
+/** Most players in a party. */
+function partyMax(): num {
+    return 5;
+}
+
+/** Ticks an invite stays open. */
+function partyInviteTicks(): num {
+    return 1200;
+}
+
+/** Party id of player uuid, 0 when solo. */
+function partyIdOf(uuid: str): num {
+    if (global partyOf.hasKeys(uuid)) {
+        return global partyOf[uuid] as num;
+    }
+    return 0;
+}
+
+/** Members of uuid's party, leader first ([uuid] when solo). */
+function partyMembers(uuid: str): list {
+    line id = partyIdOf(uuid);
+    if (line id == 0) {
+        return [uuid];
+    }
+    return global partyList["%var(id)"] as list;
+}
+
+/** Leader of uuid's party (uuid itself when solo). */
+function partyLeader(uuid: str): str {
+    return partyMembers(uuid)[1] as str;
+}
+
+/** 1 when players a and b are the same player or in the same party. */
+function allied(a: str, b: str): num {
+    if (a == b || (partyIdOf(a) != 0 && partyIdOf(a) == partyIdOf(b))) {
+        return 1;
+    }
+    return 0;
+}
+
+/** Name of player uuid ("?" when unknown). */
+function nameOf(uuid: str): str {
+    if (global playerNames.hasKeys(uuid)) {
+        return global playerNames[uuid] as str;
+    }
+    return "?";
+}
+
+/** uuid of the player on the plot named `name` (any case), or "". */
+function uuidByName(name: str): str {
+    line want = name.setCase(case="lowercase");
+    for (line uuid, line n of global playerNames) {
+        if ((line n as str).setCase(case="lowercase") == line want) {
+            return line uuid as str;
+        }
+    }
+    return "";
+}
+
+/** Sends a chat line to player uuid (no-op when they are not here). */
+function tell(uuid: str, msg: txt) {
+    select playersByName(uuid);
+    selected.sendMessage(msg);
+    select reset;
+}
+
+/** Stores a party's member list; an empty list removes the party. */
+function partyStore(id: num, members: list) {
+    if (members.len() == 0) {
+        global partyList.remove("%var(id)");
+    } else {
+        global partyList["%var(id)"] = members;
+    }
+}
+
+/** Redraws the menus of players (the menu loop rebuilds a dirty screen). */
+function partyRefresh(members: list) {
+    for (line m of members) {
+        global menuDirty[line m as str] = 1;
+    }
+}
+
+/** Invites `invitee` into from's party (a solo `from` starts one). Returns "" on
+ * success, or why not. */
+function partyInviteUuid(from: str, invitee: str): str {
+    if (invitee == "" || invitee == from) {
+        return "no such player";
+    }
+    if (allied(from, invitee) == 1) {
+        return "already in your party";
+    }
+    line id = partyIdOf(from);
+    if (line id != 0 && partyMembers(from).len() >= partyMax()) {
+        return "your party is full";
+    }
+    if (line id == 0) {
+        global partyNext += 1;
+        line id = global partyNext;
+        global partyOf[from] = line id;
+        partyStore(line id, [from]);
+    }
+    global partyInvite[invitee] = {party: line id, from: from, until: game.ticksSinceStartup + partyInviteTicks()};
+    line who = nameOf(from);
+    tell(invitee, s"<aqua>%var(who)</aqua> <gray>invited you to their party: <yellow>@party accept</yellow> or <yellow>@party decline</yellow>, or answer on the main screen (60 s).");
+    partyRefresh([invitee]);
+    return "";
+}
+
+/** The pending invite of uuid ({} when none or expired). */
+function partyInviteOf(uuid: str): dict {
+    if (!global partyInvite.hasKeys(uuid)) {
+        return {};
+    }
+    line inv = global partyInvite[uuid] as dict;
+    if (line inv["until"] as num < game.ticksSinceStartup) {
+        global partyInvite.remove(uuid);
+        return {};
+    }
+    return line inv;
+}
+
+/** uuid accepts their invite: leaves any party and joins. Returns "" on
+ * success, or why not. */
+function partyAccept(uuid: str): str {
+    line inv = partyInviteOf(uuid);
+    if (line inv.len() == 0) {
+        return "no open invite";
+    }
+    global partyInvite.remove(uuid);
+    line id = line inv["party"] as num;
+    if (!global partyList.hasKeys("%var(id)")) {
+        return "that party is gone";
+    }
+    line members = global partyList["%var(id)"] as list;
+    if (line members.len() >= partyMax()) {
+        return "that party is full";
+    }
+    partyLeave(uuid);
+    line members.append(uuid);
+    partyStore(line id, line members);
+    global partyOf[uuid] = line id;
+    line who = nameOf(uuid);
+    for (line m of line members) {
+        tell(line m as str, s"<aqua>%var(who)</aqua> <gray>joined the party.");
+    }
+    partyRefresh(line members);
+    return "";
+}
+
+/** uuid declines their invite. */
+function partyDecline(uuid: str) {
+    line inv = partyInviteOf(uuid);
+    global partyInvite.remove(uuid);
+    if (line inv.len() > 0) {
+        line who = nameOf(uuid);
+        tell(line inv["from"] as str, s"<aqua>%var(who)</aqua> <gray>declined your invite.");
+    }
+    partyRefresh([uuid]);
+}
+
+/** uuid leaves their party. The next member leads; a party left with one
+ * member is disbanded. */
+function partyLeave(uuid: str) {
+    line id = partyIdOf(uuid);
+    if (line id == 0) {
+        return;
+    }
+    line members = partyMembers(uuid);
+    line members.remove(line members.find(uuid));
+    global partyOf.remove(uuid);
+    line who = nameOf(uuid);
+    if (line members.len() <= 1) {
+        for (line m of line members) {
+            global partyOf.remove(line m as str);
+            tell(line m as str, s"<aqua>%var(who)</aqua> <gray>left; the party is disbanded.");
+        }
+        partyStore(line id, []);
+    } else {
+        partyStore(line id, line members);
+        for (line m of line members) {
+            tell(line m as str, s"<aqua>%var(who)</aqua> <gray>left the party.");
+        }
+    }
+    line members.append(uuid);
+    partyRefresh(line members);
+}
+
+/** The leader removes `target` from the party. Returns "" or why not. */
+function partyKick(leader: str, target: str): str {
+    if (partyIdOf(leader) == 0 || partyLeader(leader) != leader) {
+        return "only the party leader can remove members";
+    }
+    if (target == leader || allied(leader, target) == 0) {
+        return "not in your party";
+    }
+    partyLeave(target);
+    tell(target, s"<gray>You were removed from the party.");
+    return "";
+}
+
+/** Opens the invite dialog: a name box and an INVITE button
+ * (clickDialogButton sends the invite). */
+function partyInviteDialog {
+    line d = dialog.create("party_invite", s"Invite to party", type="Multi Action with Exit Button");
+    line d.addTextInput("name", s"Player name", "", 200, 16);
+    line d.addButton(s"Invite", s"Send a party invite", "send", 100);
+    default.openDialog(line d);
+}
+
+playerevent clickDialogButton {
+    if (event.clickedDialogId == "party_invite" && event.clickedButtonId == "send") {
+        partyCommand(["party", "invite", game.getDialogText("name")]);
+    }
+}
+
+/** Forgets a player leaving the plot: their party seat, invites and name. */
+function partyDrop(uuid: str) {
+    partyLeave(uuid);
+    global partyInvite.remove(uuid);
+    global playerNames.remove(uuid);
+}
+
+/** @party [invite <name> | accept | decline | leave | kick <name>]: party
+ * commands; no argument lists the members. */
+function partyCommand(parts: list) {
+    line me = default.uuid;
+    line sub = "";
+    if (parts.len() >= 2) {
+        line sub = parts[2] as str;
+    }
+    line arg = "";
+    if (parts.len() >= 3) {
+        line arg = parts[3] as str;
+    }
+    line err = "";
+    if (line sub == "invite") {
+        line err = partyInviteUuid(line me, uuidByName(line arg));
+        if (line err == "") {
+            default.sendMessage(s"<gray>Invited <aqua>%var(arg)</aqua>.");
+        }
+    } else if (line sub == "accept") {
+        line err = partyAccept(line me);
+    } else if (line sub == "decline") {
+        partyDecline(line me);
+    } else if (line sub == "leave") {
+        partyLeave(line me);
+    } else if (line sub == "kick") {
+        line err = partyKick(line me, uuidByName(line arg));
+    } else {
+        line names = [];
+        for (line m of partyMembers(line me)) {
+            line names.append(nameOf(line m as str));
+        }
+        line roster = line names.join(", ");
+        line n = line names.len();
+        line max = partyMax();
+        default.sendMessage(s"<gold>Party</gold> <gray>(%var(n)/%var(max), leader first): <white>%var(roster)");
+    }
+    if (line err != "") {
+        default.sendMessage(s"<red>%var(err)");
+    }
+}

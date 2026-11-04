@@ -2,8 +2,8 @@
 // main screen.png: a top bar (profile, settings, party | shop, cosmetic
 // credits, upgrade points), the map selector, PLAY (queue selector,
 // MEC-74), CUSTOMIZE (robot customizer, MEC-75) and the party panel with
-// the player's mech in 3D (ui/preview.tc; party members join it with
-// MEC-77). Kept within 230 canvas units of the center so 4:3 windows show it
+// every member's mech in 3D (ui/preview.tc, game/party.tc), INVITE and
+// LEAVE, and a banner to answer a pending party invite. Kept within 230 canvas units of the center so 4:3 windows show it
 // all. Credits and upgrade points come from the saved player data (MEC-78).
 
 /** Map picked per player on the main screen (uuid -> index in mapNames()). */
@@ -29,6 +29,55 @@ function boxedButton(id: str, text: str, x: num, y: num, w: num, h: num, action:
     return [menuPanel("%var(id)Box", x, y, w, h, 2, 0.3), menuButton(id, text, x, y, w, h, action)];
 }
 
+/** The party panel: each member's mech in 3D with their name (you in cyan,
+ * the leader in amber), INVITE while there is room and you lead, LEAVE in a
+ * party, and a banner for a pending invite. */
+function partyWidgets(uuid: str, cls: str): list {
+    line members = partyMembers(uuid);
+    line n = line members.len();
+    line max = partyMax();
+    line out = [
+        menuPanel("partybox", 100, 10, 220, 150, 0, 0.5),
+        menuLabel("partyTitle", "PARTY %var(n)/%var(max)", "text_s", 100, -55, 1)
+    ];
+    if (line n == 1) {
+        line out.append(menuLabel("member1", "YOU   %var(cls)", "text", 100, 45, 3));
+        line out.append(menuPreview("mech1", loadoutOf(uuid), 100, 0, 190, 80));
+    } else {
+        // Members side by side in equal slots across the panel.
+        line slot = 200 / line n;
+        repeat (line i to line n) {
+            line m = line members[line i] as str;
+            line x = line slot * (line i - 0.5);
+            line pal = 0;
+            line name = nameOf(line m).setCase(case="UPPERCASE");
+            if (line m == uuid) {
+                line pal = 3;
+                line name = "YOU";
+            } else if (line i == 1) {
+                line pal = 4;
+            }
+            line out.append(menuLabel("member%var(i)", line name, "text_s", line x, 45, line pal));
+            line out.append(menuPreview("mech%var(i)", loadoutOf(line m), line x, 0, line slot - 6, 80));
+        }
+    }
+    if (line n < line max && partyLeader(uuid) == uuid) {
+        line out.append(menuButton("invite", "INVITE", 65, 68, 60, 16, "party invite"));
+    }
+    if (line n > 1) {
+        line out.append(menuButton("leave", "LEAVE", 135, 68, 60, 16, "party leave"));
+    }
+    line inv = partyInviteOf(uuid);
+    if (line inv.len() > 0) {
+        line from = nameOf(line inv["from"] as str).setCase(case="UPPERCASE");
+        line out.append(menuPanel("inviteBox", 0, -128, 340, 22, 4, 0.4));
+        line out.append(menuLabel("inviteText", "PARTY INVITE FROM %var(from)", "text_s", -60, -128, 4));
+        line out.append(menuButton("inviteAccept", "ACCEPT", 75, -128, 54, 16, "party accept"));
+        line out.append(menuButton("inviteDecline", "DECLINE", 135, -128, 54, 16, "party decline"));
+    }
+    return line out;
+}
+
 /** Widgets of the main screen for the player. */
 function mainScreen(uuid: str): list {
     line cls = (playerLoadout()["cls"] as str).setCase(case="UPPERCASE");
@@ -39,7 +88,7 @@ function mainScreen(uuid: str): list {
         menuPanel("topbar", 0, -160, 470, 26, 2, 0.6),
         menuButton("profile", "PROFILE", -195, -160, 60, 16, "profile"),
         menuButton("settings", "SETTINGS", -125, -160, 66, 16, "settings"),
-        menuButton("party", "PARTY", -60, -160, 50, 16, "party"),
+        menuButton("party", "PARTY", -60, -160, 50, 16, "party invite"),
         menuButton("shop", "SHOP", 90, -160, 50, 16, "shop"),
         menuLabel("credits", "CREDITS %var(cr)", "text_s", 150, -160, 4),
         menuLabel("points", "POINTS %var(pts)", "text_s", 205, -160, 6),
@@ -48,13 +97,11 @@ function mainScreen(uuid: str): list {
         menuLabel("mapTitle", "MAP", "text_s", -150, -55, 1),
         menuLabel("mapName", pickedMap(uuid), "text", -150, -20, 0),
         menuButton("mapPrev", "<", -212, -20, 18, 30, "map prev"),
-        menuButton("mapNext", ">", -88, -20, 18, 30, "map next"),
-        // Party.
-        menuPanel("partybox", 100, 10, 220, 150, 0, 0.5),
-        menuLabel("partyTitle", "PARTY", "text_s", 100, -55, 1),
-        menuLabel("member1", "YOU   %var(cls)", "text", 100, 70, 3),
-        menuPreview("mech1", playerLoadout(), 100, 5, 190, 100)
+        menuButton("mapNext", ">", -88, -20, 18, 30, "map next")
     ];
+    for (line w of partyWidgets(uuid, line cls)) {
+        line out.append(line w);
+    }
     for (line w of boxedButton("play", "PLAY", -150, 45, 150, 22, "queue")) {
         line out.append(line w);
     }
@@ -83,6 +130,10 @@ function mainAction(action: str): num {
         return 1;
     }
     if (action == "queue") {
+        if (partyLeader(uuid) != uuid) {
+            default.sendMessage(s"<gray>Only your party leader can queue.");
+            return 1;
+        }
         default.sendMessage(s"<gray>The queue selector arrives with MEC-74.");
         return 1;
     }
@@ -94,8 +145,17 @@ function mainAction(action: str): num {
         menuOpen("settings");
         return 1;
     }
-    if (action == "profile" || action == "party" || action == "shop") {
-        default.sendMessage(s"<gray>%var(action) arrives with its own screen (MEC-81, MEC-77, MEC-79).");
+    if (action == "party invite") {
+        partyInviteDialog();
+        return 1;
+    }
+    if (action == "party leave" || action == "party accept" || action == "party decline") {
+        partyCommand(action.split(" "));
+        menuOpen("main");
+        return 1;
+    }
+    if (action == "profile" || action == "shop") {
+        default.sendMessage(s"<gray>%var(action) arrives with its own screen (MEC-81, MEC-79).");
         return 1;
     }
     return 0;

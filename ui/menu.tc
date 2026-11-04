@@ -18,6 +18,9 @@
 
 /** Menu state per player (uuid -> {screen, seat, cursor, widgets, hover}). */
 declare global menuOf: dict;
+/** Players whose screen must be rebuilt (uuid -> 1), e.g. after a party
+ * change; the menu loop rebuilds it. */
+declare global menuDirty: dict;
 /** Where menu seats go; unset = the player's own position. */
 declare global menuRoomAt: loc;
 declare global menuRoomSet: num;
@@ -169,6 +172,7 @@ function menuOpen(id: str) {
     }
     line st["screen"] = id;
     line st["widgets"] = line placed;
+    global menuDirty.remove(uuid);
     line st["hover"] = "";
     global menuOf[uuid] = line st;
 }
@@ -306,6 +310,10 @@ process menuLoop {
     repeat {
         if (menuIsOpen(default.uuid) != 1) {
             break;
+        }
+        if (global menuDirty.hasKeys(default.uuid)) {
+            global menuDirty.remove(default.uuid);
+            menuOpen((global menuOf[default.uuid] as dict)["screen"] as str);
         }
         menuClampView();
         menuHoverTick();

@@ -74,7 +74,12 @@ function defaultLoadout(cls: str): dict {
 
 /** The player's loadout, valid (a fresh walker the first time). */
 function playerLoadout(): dict {
-    line raw = pdGet(default.uuid, "lo") as dict;
+    return loadoutOf(default.uuid);
+}
+
+/** Player uuid's loadout, valid (a fresh walker the first time). */
+function loadoutOf(uuid: str): dict {
+    line raw = pdGet(uuid, "lo") as dict;
     if (line raw.len() == 0) {
         return defaultLoadout("walker");
     }

@@ -146,7 +146,7 @@ function argNum(parts: list, index: num, fallback: num): num {
     return num.parse(parts[index] as str);
 }
 
-/** Chat commands: @mech @loadout @sit @clear @cpu @floor @spike @parts @hitbox @hit @hp @splash @data @selftest @help, and the
+/** Chat commands: @mech @loadout @sit @clear @cpu @floor @spike @parts @hitbox @hit @hp @splash @party @data @selftest @help, and the
  * pack spike: @pack @hud @menu @model @beep @fx @outline. */
 playerevent command {
     ensureInitialized();
@@ -191,6 +191,8 @@ playerevent command {
         hitboxCommand(line parts);
     } else if (line cmd == "hit") {
         hitCommand(line parts);
+    } else if (line cmd == "party") {
+        partyCommand(line parts);
     } else if (line cmd == "data") {
         dataCommand(line parts);
     } else if (line cmd == "selftest") {
@@ -239,6 +241,7 @@ function mechHelp {
     default.sendMessage(s"<yellow>@hit [damage]</yellow> <gray>test a ray from your eye against mech hitboxes, optionally damaging the part");
     default.sendMessage(s"<yellow>@hp [mech]</yellow> <gray>list a mech's part HP");
     default.sendMessage(s"<yellow>@splash [damage] [radius]</yellow> <gray>splash damage where your eye ray ends");
+    default.sendMessage(s"<yellow>@party [invite <name> | accept | decline | leave | kick <name>]</yellow> <gray>party commands; no argument lists your party");
     default.sendMessage(s"<yellow>@data [credits|points|xp <n> | reset]</yellow> <gray>show your saved player data, add to it, or clear it");
     default.sendMessage(s"<yellow>@selftest</yellow> <gray>run the automated checks (clears all mechs)");
     default.sendMessage(s"<gold><bold>Pack spike</bold>");
@@ -255,6 +258,7 @@ playerevent join {
     default.setToCreativeMode();
     restartLoop();
     pdLoad(default.uuid);
+    global playerNames[default.uuid] = default.name;
     settingsApply(default.uuid);
     packJoin();
     packSend();
@@ -265,6 +269,7 @@ playerevent join {
 
 playerevent leave {
     fxDrop(default.uuid);
+    partyDrop(default.uuid);
 }
 
 /** Pilots never leave their mech (owner, MEC-95): dismounting is cancelled

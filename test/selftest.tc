@@ -17,7 +17,8 @@ function selfTestOnJoin(): num {
 /** Visual demo after the checks: "" none, "hud" (the demo HUD for 10 s),
  * "fx" (each screen effect for 12 s), "cockpit" (frame, crosshair and gun
  * reticle for 15 s), "menu" (the main menu for 15 s), "custom" (the
- * customizer for 15 s) or "settings" (the settings screen for 15 s), for
+ * customizer for 15 s), "settings" (the settings screen for 15 s) or
+ * "party" (the main screen with a party of three and an invite, 15 s), for
  * screenshots. */
 function selfTestDemo(): str {
     return "";
@@ -273,7 +274,7 @@ function runSelfTest {
     // points (a seated player cannot be turned with setRotation), clicks.
     menuOpen("main");
     checkNum("menu open", menuIsOpen(line me), 1, 0);
-    checkNum("main screen widgets", ((global menuOf[line me] as dict)["widgets"] as list).len(), 20, 0);
+    checkNum("main screen widgets", ((global menuOf[line me] as dict)["widgets"] as list).len(), 21, 0);
     line prevW = ((global menuOf[line me] as dict)["widgets"] as list)[16] as dict;
     checkStr("party preview widget", prevW["kind"] as str, "preview");
     checkNum("preview has every part", ((prevW["preview"] as dict)["ents"] as list).len(), partTotal(playerLoadout()["cls"] as str), 0);
@@ -304,6 +305,7 @@ function runSelfTest {
 
     testPlayerData();
     testSettings();
+    testParty();
 
     hudReset(default.uuid);
     hudDemo(default.uuid);
@@ -369,6 +371,22 @@ function runSelfTest {
         default.sendMessage(s"<gold>MECHTEST FX custom");
         wait(300);
         menuClose();
+    } else if (selfTestDemo() == "party") {
+        hudReset(line me2);
+        for (line t of ["ta", "tb"]) {
+            global playerNames["test-%var(t)"] = "Tester_%var(t)";
+            partyInviteUuid(line me2, "test-%var(t)");
+            partyAccept("test-%var(t)");
+        }
+        global playerNames["test-tc"] = "Tester_tc";
+        partyInviteUuid("test-tc", line me2);
+        menuOpen("main");
+        default.sendMessage(s"<gold>MECHTEST FX party");
+        wait(300);
+        menuClose();
+        global partyOf = {};
+        global partyList = {};
+        global partyInvite = {};
     } else if (selfTestDemo() == "settings") {
         hudReset(line me2);
         menuOpen("settings");
@@ -496,6 +514,87 @@ function testSettings {
     fxCockpit(line me, 0);
     saved "pd %var(me)" = line keep;
     settingsApply(line me);
+}
+
+/** Ids of the widgets on the player's open screen. */
+function screenIds(uuid: str): list {
+    line ids = [];
+    for (line w of (global menuOf[uuid] as dict)["widgets"] as list) {
+        line ids.append((line w as dict)["id"]);
+    }
+    return line ids;
+}
+
+/** Party checks (MEC-77) with stand-in members (test uuids that are not on
+ * the plot). Parties are reset before and after. */
+function testParty {
+    line me = default.uuid;
+    global partyOf = {};
+    global partyList = {};
+    global partyInvite = {};
+    for (line t of ["ta", "tb", "tc", "td", "te"]) {
+        global playerNames["test-%var(t)"] = "Tester_%var(t)";
+    }
+    checkNum("solo has no party", partyIdOf(line me), 0, 0);
+    checkStr("solo leads itself", partyLeader(line me), line me);
+    checkStr("invite by name", uuidByName("tester_TA"), "test-ta");
+    checkStr("invite sent", partyInviteUuid(line me, "test-ta"), "");
+    checkNum("inviting starts a party", num.min(partyIdOf(line me), 1), 1, 0);
+    checkStr("accept", partyAccept("test-ta"), "");
+    checkNum("two members", partyMembers(line me).len(), 2, 0);
+    checkNum("allied", allied(line me, "test-ta"), 1, 0);
+    checkNum("not allied", allied(line me, "test-tb"), 0, 0);
+    checkStr("no double invite", partyInviteUuid(line me, "test-ta"), "already in your party");
+    for (line t of ["tb", "tc", "td"]) {
+        partyInviteUuid(line me, "test-%var(t)");
+        partyAccept("test-%var(t)");
+    }
+    checkNum("five members", partyMembers(line me).len(), 5, 0);
+    checkStr("party full", partyInviteUuid(line me, "test-te"), "your party is full");
+    checkStr("accept without invite", partyAccept("test-te"), "no open invite");
+    menuOpen("main");
+    line previews = 0;
+    for (line w of (global menuOf[line me] as dict)["widgets"] as list) {
+        if ((line w as dict)["kind"] as str == "preview") {
+            line previews += 1;
+        }
+    }
+    checkNum("five mechs on the main screen", line previews, 5, 0);
+    line ids = screenIds(line me);
+    checkNum("full party has no invite button", line ids.find("invite"), 0, 0);
+    checkNum("leave button", num.min(line ids.find("leave"), 1), 1, 0);
+    checkStr("member names", nameOf(partyMembers(line me)[2] as str), "Tester_ta");
+    checkStr("kick", partyKick(line me, "test-td"), "");
+    checkNum("kicked", partyMembers(line me).len(), 4, 0);
+    checkStr("only the leader kicks", partyKick("test-ta", "test-tb"), "only the party leader can remove members");
+    // The leader leaves: the next member leads.
+    menuAction("party leave");
+    checkNum("left", partyIdOf(line me), 0, 0);
+    checkStr("lead passes on", partyLeader("test-ta"), "test-ta");
+    // An invite to the player shows on the main screen and is accepted there.
+    partyInviteUuid("test-ta", line me);
+    menuOpen("main");
+    checkNum("invite banner", num.min(screenIds(line me).find("inviteAccept"), 1), 1, 0);
+    menuAction("party accept");
+    checkNum("joined from the banner", allied(line me, "test-ta"), 1, 0);
+    checkNum("member cannot invite", screenIds(line me).find("invite"), 0, 0);
+    // Expired invites; a party of one is disbanded.
+    partyInviteUuid("test-ta", "test-te");
+    global partyInvite["test-te"] = {party: partyIdOf("test-ta"), from: "test-ta", until: 0};
+    checkStr("invite expires", partyAccept("test-te"), "no open invite");
+    for (line t of ["tb", "tc"]) {
+        partyLeave("test-%var(t)");
+    }
+    partyLeave(line me);
+    checkNum("party of one disbanded", partyIdOf("test-ta"), 0, 0);
+    checkNum("no parties left", global partyList.len(), 0, 0);
+    menuClose();
+    global partyOf = {};
+    global partyList = {};
+    global partyInvite = {};
+    for (line t of ["ta", "tb", "tc", "td", "te"]) {
+        global playerNames.remove("test-%var(t)");
+    }
 }
 
 /** Join hook: runs the self-test a second after the player enters play
