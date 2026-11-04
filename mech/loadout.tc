@@ -3,9 +3,6 @@
 // aug2, cosmetic, each a part id from mech/catalog.tc. Derived stats are
 // computed when a loadout is set or a mech spawns, never per tick.
 
-/** The player's saved loadout. */
-declare saved "loadout %uuid": dict;
-
 /** Loadout slot -> catalog slot. */
 function slotOf(key: str): str {
     if (key == "aug1" || key == "aug2") {
@@ -77,11 +74,16 @@ function defaultLoadout(cls: str): dict {
 
 /** The player's loadout, valid (a fresh walker the first time). */
 function playerLoadout(): dict {
-    line raw = saved "loadout %uuid";
-    if (raw.len() == 0) {
+    line raw = pdGet(default.uuid, "lo") as dict;
+    if (line raw.len() == 0) {
         return defaultLoadout("walker");
     }
-    return validLoadout(raw);
+    return validLoadout(line raw);
+}
+
+/** Saves lo, validated, as the player's loadout (game/playerdata.tc). */
+function saveLoadout(lo: dict) {
+    pdSet(default.uuid, "lo", validLoadout(lo));
 }
 
 /** Derived stats of a valid loadout:
@@ -163,7 +165,7 @@ function loadoutCommand(parts: list) {
             }
             line lo = validLoadout(line lo);
         }
-        saved "loadout %uuid" = line lo;
+        saveLoadout(line lo);
     }
     showLoadout(line lo);
 }

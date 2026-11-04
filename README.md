@@ -20,7 +20,7 @@ class skeletons of placeholder parts, `@cpu` gauge). Next: the Stage 1 spikes in
 | `core/state.tc` | Mech and world state declarations + tunables |
 | `core/loop.tc` | Main loop: per-tick drive, push-out, draw |
 | `core/input.tc` | Click and scroll events, routed by what the player is doing |
-| `core/commands.tc` | `@mech @loadout @sit @clear @cpu @floor @parts @hitbox @hit @hp @splash @selftest @help`, the pack spike commands, boarding |
+| `core/commands.tc` | `@mech @loadout @sit @clear @cpu @floor @parts @hitbox @hit @hp @splash @data @selftest @help`, the pack spike commands, boarding |
 | `mech/chassis.tc` | Spawn a mech from a loadout, drive, push-out, draw |
 | `mech/skeleton.tc` | Class skeletons: placeholder part displays, right-handed part matrices, two-bone knee solve |
 | `mech/catalog.tc` | Part catalog: one row per prebuilt part (classes, guns, armor, augments, cosmetics), `@parts` |
@@ -30,6 +30,7 @@ class skeletons of placeholder parts, `@cpu` gauge). Next: the Stage 1 spikes in
 | `combat/loss.tc` | Part-loss effects per class (mobility, guns, torso lock, augments) and debris |
 | `combat/destroy.tc` | Mech destruction: wreck effect, all parts to debris, seat removed, pilot handed to the mode |
 | `combat/hitbox.tc` | Part hitboxes (boxes and leg capsules from the drawn displays), segment and splash queries, `@hitbox @hit` |
+| `game/playerdata.tc` | Saved player data: one versioned record per player (loadout, credits, points, XP, unlocks, cosmetics, upgrade tiers, profile, settings), `@data` |
 | `game/pack.tc` | Join flow: resource pack on join, loading title, decline handling, `packUrl()` of the published pack |
 | `maps/` | Empty until its stage |
 | `ui/markers.tc` | UI marker colors and run-time MiniMessage |

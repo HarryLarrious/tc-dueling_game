@@ -283,7 +283,7 @@ function runSelfTest {
     checkStr("map next runs", global menuLastAction, "map next");
     checkStr("map still picked", pickedMap(line me), "PROVING GROUNDS");
     // Customizer (MEC-75): picks save the loadout; back returns to main.
-    line keepLo = saved "loadout %uuid";
+    line keepLo = pdGet(line me, "lo");
     menuAction("customize");
     checkStr("customizer open", (global menuOf[line me] as dict)["screen"] as str, "custom");
     menuAction("pick spider");
@@ -296,10 +296,12 @@ function runSelfTest {
     checkStr("spider railgun allowed", playerLoadout()["main"] as str, "railgun");
     menuAction("back");
     checkStr("back to main", (global menuOf[line me] as dict)["screen"] as str, "main");
-    saved "loadout %uuid" = line keepLo;
+    pdSet(line me, "lo", line keepLo);
     global custCatOf.remove(line me);
     menuAction("back");
     checkNum("back closes the menu", menuIsOpen(line me), 0, 0);
+
+    testPlayerData();
 
     hudReset(default.uuid);
     hudDemo(default.uuid);
@@ -377,6 +379,72 @@ function runSelfTest {
     fxCockpit(line me2, 0);
     hudReset(default.uuid);
     default.sendMessage(s"<gold>MECHTEST FX end");
+}
+
+/** Saved player data checks (MEC-78). The player's real record is kept and
+ * put back at the end. */
+function testPlayerData {
+    line me = default.uuid;
+    line keep = pdOf(line me);
+    checkNum("player data version", pdNum(line me, "v"), pdVersion(), 0);
+    // A new player: defaults everywhere.
+    saved "pd %var(me)" = {};
+    checkNum("new player credits", playerCredits(line me), 0, 0);
+    checkStr("new player loadout", playerLoadout()["cls"] as str, "walker");
+    checkNum("new player tier", partTier(line me, "railgun"), 0, 0);
+    checkStr("setting default", playerSetting(line me, "fov", "x") as str, "x");
+    // Numbers, lists and sub-dicts.
+    pdAddNum(line me, "cr", 25);
+    checkNum("credits add", playerCredits(line me), 25, 0);
+    checkNum("credits floor at 0", pdAddNum(line me, "cr", -100), 0, 0);
+    pdAdd(line me, "unl", "railgun");
+    pdAdd(line me, "unl", "railgun");
+    checkNum("unlock added once", (pdGet(line me, "unl") as list).len(), 1, 0);
+    checkNum("unlock owned", pdHas(line me, "unl", "railgun"), 1, 0);
+    pdSetSub(line me, "upg", "railgun", 2);
+    checkNum("upgrade tier", partTier(line me, "railgun"), 2, 0);
+    saveLoadout({cls: "spider"});
+    checkStr("loadout saved", playerLoadout()["cls"] as str, "spider");
+    checkNum("write stamps version", pdNum(line me, "v"), pdVersion(), 0);
+    // The main screen reads credits from the record.
+    pdAddNum(line me, "cr", 40);
+    menuOpen("main");
+    line label = "";
+    for (line w of (global menuOf[line me] as dict)["widgets"] as list) {
+        if ((line w as dict)["id"] as str == "credits") {
+            line label = (line w as dict)["text"] as str;
+        }
+    }
+    checkStr("main screen credits", line label, "CREDITS 40");
+    menuClose();
+    // Migration from the pre-MEC-78 loadout variable.
+    saved "pd %var(me)" = {};
+    saved "loadout %var(me)" = {cls: "crawler"};
+    pdLoad(line me);
+    checkStr("legacy loadout migrated", playerLoadout()["cls"] as str, "crawler");
+    checkNum("legacy variable purged", (saved "loadout %var(me)" as dict).len(), 0, 0);
+    checkNum("migrated version", pdNum(line me, "v"), pdVersion(), 0);
+    // Size of a record that owns and upgraded every part.
+    line upg = {};
+    for (line id of global partOrder) {
+        line upg[line id as str] = 5;
+    }
+    line full = {
+        v: pdVersion(), lo: defaultLoadout("walker"), cr: 999999, pts: 99999, xp: 9999999,
+        unl: global partOrder, cos: global partOrder, upg: line upg,
+        prof: {banner: "banner_01", title: "title_01", showLevel: 1, showKills: 1},
+        set: {s01: 1, s02: 1, s03: 1, s04: 1, s05: 1, s06: 1, s07: 1, s08: 1, s09: 1, s10: 1, s11: 1, s12: 1}
+    };
+    saved "pd %var(me)" = line full;
+    line size = pdSize(line me);
+    line parts = global partOrder.len();
+    default.sendMessage(s"<gray>MECHTEST INFO full player record %var(size) chars, %var(parts) parts");
+    line small = 0;
+    if (line size < 2000) {
+        line small = 1;
+    }
+    check("full record under 2000 chars", line small, "%var(size)", "< 2000");
+    saved "pd %var(me)" = line keep;
 }
 
 /** Join hook: runs the self-test a second after the player enters play

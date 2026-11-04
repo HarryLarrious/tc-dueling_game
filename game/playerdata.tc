@@ -1,0 +1,178 @@
+// Saved player data (MEC-78): one saved dict per player UUID, "pd <uuid>".
+// It holds only what a player has changed or earned, so a record stays small:
+// DF caps a plot's saved variables at 10 MB uncompressed and 500,000
+// variables in all (PLAN.md, Persistence). Keys are short because every
+// player stores them:
+//   v     format version (pdVersion())
+//   lo    loadout (mech/loadout.tc)
+//   cr    cosmetic credits
+//   pts   upgrade points
+//   xp    experience; the level derives from it (MEC-81)
+//   unl   unlocked part ids (list)
+//   cos   owned cosmetic ids (list)
+//   upg   part id -> upgrade tier (MEC-79)
+//   prof  profile choices: banner, title, toggles (MEC-81)
+//   set   settings (MEC-76)
+// A missing key reads as its default. pdLoad runs on join and brings an
+// older record up to pdVersion().
+
+/** Current format version of the saved player record. */
+function pdVersion(): num {
+    return 1;
+}
+
+/** The saved record of player uuid ({} for a new player). */
+function pdOf(uuid: str): dict {
+    return saved "pd %var(uuid)" as dict;
+}
+
+/** Default value of a record key. */
+function pdDefault(key: str): any {
+    if (key == "lo" || key == "upg" || key == "prof" || key == "set") {
+        return {};
+    }
+    if (key == "unl" || key == "cos") {
+        return [];
+    }
+    return 0;
+}
+
+/** Value of key in uuid's record, or its default. */
+function pdGet(uuid: str, key: str): any {
+    line d = pdOf(uuid);
+    if (line d.hasKeys(key)) {
+        return line d[key];
+    }
+    return pdDefault(key);
+}
+
+/** Stores value under key in uuid's record. */
+function pdSet(uuid: str, key: str, value: any) {
+    line d = pdOf(uuid);
+    line d["v"] = pdVersion();
+    line d[key] = value;
+    saved "pd %var(uuid)" = line d;
+}
+
+/** Number under key (credits "cr", points "pts", "xp"). */
+function pdNum(uuid: str, key: str): num {
+    return pdGet(uuid, key) as num;
+}
+
+/** Adds n (may be negative) to the number under key; it never drops below
+ * 0. Returns the new value. */
+function pdAddNum(uuid: str, key: str, n: num): num {
+    line value = num.max(0, pdNum(uuid, key) + n);
+    pdSet(uuid, key, line value);
+    return line value;
+}
+
+/** 1 when id is in the list under key (unlocks "unl", cosmetics "cos"). */
+function pdHas(uuid: str, key: str, id: str): num {
+    if ((pdGet(uuid, key) as list).find(id) == 0) {
+        return 0;
+    }
+    return 1;
+}
+
+/** Adds id to the list under key once. */
+function pdAdd(uuid: str, key: str, id: str) {
+    line ids = pdGet(uuid, key) as list;
+    if (line ids.find(id) == 0) {
+        line ids.append(id);
+        pdSet(uuid, key, line ids);
+    }
+}
+
+/** Entry sub of the dict under key (tiers "upg", profile "prof", settings
+ * "set"), or def. */
+function pdSub(uuid: str, key: str, sub: str, def: any): any {
+    line d = pdGet(uuid, key) as dict;
+    if (line d.hasKeys(sub)) {
+        return line d[sub];
+    }
+    return def;
+}
+
+/** Stores value as entry sub of the dict under key. */
+function pdSetSub(uuid: str, key: str, sub: str, value: any) {
+    line d = pdGet(uuid, key) as dict;
+    line d[sub] = value;
+    pdSet(uuid, key, line d);
+}
+
+/** Cosmetic credits of player uuid. */
+function playerCredits(uuid: str): num {
+    return pdNum(uuid, "cr");
+}
+
+/** Upgrade points of player uuid. */
+function playerPoints(uuid: str): num {
+    return pdNum(uuid, "pts");
+}
+
+/** Upgrade tier of part id for player uuid (0 = not upgraded). */
+function partTier(uuid: str, id: str): num {
+    return pdSub(uuid, "upg", id, 0) as num;
+}
+
+/** A setting of player uuid, or def when never set. */
+function playerSetting(uuid: str, key: str, def: any): any {
+    return pdSub(uuid, "set", key, def);
+}
+
+/** Loads player uuid's record on join and migrates it to pdVersion().
+ * Version 0 (no record): the loadout saved before MEC-78 under
+ * "loadout <uuid>" moves into the record. */
+function pdLoad(uuid: str) {
+    line d = pdOf(uuid);
+    line v = 0;
+    if (line d.hasKeys("v")) {
+        line v = line d["v"] as num;
+    }
+    if (line v < 1) {
+        line old = saved "loadout %var(uuid)" as dict;
+        if (line old.len() > 0) {
+            line d["lo"] = line old;
+        }
+        var.purgeMatching("loadout %var(uuid)", matchRequirement="Entire name");
+    }
+    if (line v != pdVersion()) {
+        line d["v"] = pdVersion();
+        saved "pd %var(uuid)" = line d;
+    }
+}
+
+/** Size in characters of uuid's record as JSON (PLAN.md budget: under 2000
+ * for a player who owns and upgraded everything). */
+function pdSize(uuid: str): num {
+    return var.toJSON(pdOf(uuid)).len();
+}
+
+/** @data [credits|points|xp <n> | reset]: shows the player's saved record,
+ * adds n to a number in it, or clears it (testing). */
+function dataCommand(parts: list) {
+    line me = default.uuid;
+    if (parts.len() >= 3) {
+        line key = parts[2] as str;
+        line n = num.parse(parts[3] as str);
+        if (line key == "credits") {
+            pdAddNum(line me, "cr", line n);
+        } else if (line key == "points") {
+            pdAddNum(line me, "pts", line n);
+        } else if (line key == "xp") {
+            pdAddNum(line me, "xp", line n);
+        }
+    } else if (parts.len() == 2 && parts[2] as str == "reset") {
+        saved "pd %var(me)" = {};
+        pdLoad(line me);
+    }
+    line cr = playerCredits(line me);
+    line pts = playerPoints(line me);
+    line xp = pdNum(line me, "xp");
+    line unl = (pdGet(line me, "unl") as list).len();
+    line cos = (pdGet(line me, "cos") as list).len();
+    line v = pdNum(line me, "v");
+    line size = pdSize(line me);
+    default.sendMessage(s"<gold>Player data</gold> <gray>v%var(v), %var(size) chars: credits <white>%var(cr)</white> points <white>%var(pts)</white> xp <white>%var(xp)</white> unlocks <white>%var(unl)</white> cosmetics <white>%var(cos)</white>");
+}

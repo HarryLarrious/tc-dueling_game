@@ -4,7 +4,7 @@
 // MEC-74), CUSTOMIZE (robot customizer, MEC-75) and the party panel with
 // the player's mech in 3D (ui/preview.tc; party members join it with
 // MEC-77). Kept within 230 canvas units of the center so 4:3 windows show it
-// all. Credits read 0 until saved player data (MEC-78).
+// all. Credits and upgrade points come from the saved player data (MEC-78).
 
 /** Map picked per player on the main screen (uuid -> index in mapNames()). */
 declare global mapPickOf: dict;
@@ -32,6 +32,8 @@ function boxedButton(id: str, text: str, x: num, y: num, w: num, h: num, action:
 /** Widgets of the main screen for the player. */
 function mainScreen(uuid: str): list {
     line cls = (playerLoadout()["cls"] as str).setCase(case="UPPERCASE");
+    line cr = playerCredits(uuid);
+    line pts = playerPoints(uuid);
     line out = [
         // Top bar.
         menuPanel("topbar", 0, -160, 470, 26, 2, 0.6),
@@ -39,8 +41,8 @@ function mainScreen(uuid: str): list {
         menuButton("settings", "SETTINGS", -125, -160, 66, 16, "settings"),
         menuButton("party", "PARTY", -60, -160, 50, 16, "party"),
         menuButton("shop", "SHOP", 90, -160, 50, 16, "shop"),
-        menuLabel("credits", "CREDITS 0", "text_s", 150, -160, 4),
-        menuLabel("points", "POINTS 0", "text_s", 205, -160, 6),
+        menuLabel("credits", "CREDITS %var(cr)", "text_s", 150, -160, 4),
+        menuLabel("points", "POINTS %var(pts)", "text_s", 205, -160, 6),
         // Map selector.
         menuPanel("mapbox", -150, -20, 150, 90, 0, 0.5),
         menuLabel("mapTitle", "MAP", "text_s", -150, -55, 1),

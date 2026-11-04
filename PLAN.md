@@ -152,8 +152,22 @@ Each class has a fixed skeleton. A loadout picks one prebuilt part per slot:
   `@mech <class>` spawns that class's default loadout.
 - **Upgrades**: each part has an upgrade tree, bought with upgrade points,
   that raises its stats inside a capped range.
-- **Persistence**: loadouts, unlocks, upgrade points, cosmetic credits and
-  level are `saved` per player UUID.
+- **Persistence** (MEC-78, `game/playerdata.tc`): one saved dict per player
+  UUID, `pd <uuid>`, holding only what the player changed or earned (a
+  missing key reads as its default): `v` format version, `lo` loadout, `cr`
+  cosmetic credits, `pts` upgrade points, `xp` (the level derives from it),
+  `unl` unlocked part ids, `cos` owned cosmetics, `upg` part id → upgrade
+  tier, `prof` profile choices, `set` settings. `pdLoad` runs on join and
+  migrates older records (version 0: the pre-MEC-78 `loadout <uuid>`
+  variable moves in and is purged). Budget: DF caps a plot's saved
+  variables at 10 MB uncompressed and 500,000 variables in all. A record
+  that owns and upgraded all 20 parts with a full profile and 12 settings
+  measures 1,035 characters as JSON (self-test); DF has about 250 players
+  in all, so even everyone stays under 0.3 MB. Alternative if that ever
+  changes: DF variable buckets (Load/Save Variable Bucket, keyed storage
+  outside the plot cap, shareable between plots through a namespace).
+  Terracotta 1.0.0-beta.10 has no bucket variable scope to write them, and
+  a namespace must be set up on the plot, so they are not used yet.
 
 ## Weapons
 

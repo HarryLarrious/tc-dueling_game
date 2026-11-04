@@ -37,13 +37,15 @@ function custOptions(key: str, lo: dict): list {
 function customScreen(uuid: str): list {
     line lo = playerLoadout();
     line cat = custCat(uuid);
+    line cr = playerCredits(uuid);
+    line pts = playerPoints(uuid);
     line out = [
         menuPanel("topbar", 0, -160, 470, 26, 2, 0.6),
         menuButton("home", "BACK", -195, -160, 60, 16, "home"),
         menuButton("settings", "SETTINGS", -125, -160, 66, 16, "settings"),
         menuButton("shop", "SHOP", 90, -160, 50, 16, "shop"),
-        menuLabel("credits", "CREDITS 0", "text_s", 150, -160, 4),
-        menuLabel("points", "POINTS 0", "text_s", 205, -160, 6),
+        menuLabel("credits", "CREDITS %var(cr)", "text_s", 150, -160, 4),
+        menuLabel("points", "POINTS %var(pts)", "text_s", 205, -160, 6),
         menuPanel("options", -110, 0, 240, 170, 0, 0.5),
         menuPanel("previewBox", 125, 0, 170, 170, 0, 0.5)
     ];
@@ -93,7 +95,7 @@ function customAction(action: str): num {
         line key = custCat(uuid);
         line lo = playerLoadout();
         line lo[line key] = line id;
-        saved "loadout %uuid" = validLoadout(line lo);
+        saveLoadout(line lo);
         menuOpen("custom");
         return 1;
     }
