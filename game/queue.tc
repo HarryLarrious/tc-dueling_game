@@ -1,0 +1,86 @@
+// Queues (MEC-74): the party leader picks a mode on the queue selector and
+// the whole party joins together, if the map has room for every member's
+// mech under the 20-mech cap (PLAN.md, CPU rules). Modes: "ffa" (casual),
+// "extraction" (ranked) and "training" (practice against AI, no rewards).
+//
+// Until the modes exist (FFA MEC-65, Extraction MEC-67, AI MEC-61) a join
+// drops each member into their own mech at the arena, side by side, and
+// records the mode in modeOf. Members are dropped by their own menu loop
+// (dropPending), since a drop acts on the member as the default player.
+
+/** Mode per player in a match (uuid -> mode). */
+declare global modeOf: dict;
+/** Members waiting to drop in (uuid -> {mode, slot}). */
+declare global dropPending: dict;
+
+/** Most mechs on the map at once. */
+function mechCap(): num {
+    return 20;
+}
+
+/** Mechs alive right now. */
+function liveMechs(): num {
+    line n = 0;
+    for (line alive of global mAlive) {
+        line n += line alive as num;
+    }
+    return line n;
+}
+
+/** Queue modes in card order. */
+function queueModes(): list {
+    return ["training", "extraction", "ffa"];
+}
+
+/** 1 when a party of n fits on a map with `live` mechs. */
+function queueFits(live: num, n: num): num {
+    if (live + n <= mechCap()) {
+        return 1;
+    }
+    return 0;
+}
+
+/** uuid's party joins `mode`. Returns "" on success, or why not. */
+function queueJoin(uuid: str, mode: str): str {
+    if (queueModes().find(mode) == 0) {
+        return "no such mode";
+    }
+    if (partyLeader(uuid) != uuid) {
+        return "only your party leader can queue";
+    }
+    line members = partyMembers(uuid);
+    line live = liveMechs();
+    if (queueFits(line live, line members.len()) == 0) {
+        line cap = mechCap();
+        return "the map is full (%var(live)/%var(cap) mechs); try again soon";
+    }
+    repeat (line i to line members.len()) {
+        line m = line members[line i] as str;
+        global dropPending[line m] = {mode: mode, slot: line i};
+        if (line m != uuid) {
+            tell(line m, s"<gray>Your party is dropping in; open the menu with <yellow>@menu</yellow> if you are not in it.");
+        }
+    }
+    dropIn();
+    return "";
+}
+
+/** Drops the player in if their party queued: closes the menu, spawns their
+ * mech beside their party's (slot i is (i - 1) * 7 blocks to the side) and
+ * seats them. */
+function dropIn {
+    line uuid = default.uuid;
+    if (!global dropPending.hasKeys(uuid)) {
+        return;
+    }
+    line drop = global dropPending[uuid] as dict;
+    global dropPending.remove(uuid);
+    menuClose();
+    ensureLoop();
+    spawnMech(playerLoadout());
+    line c = global mCount;
+    global mPos[line c] = global mPos[line c] + vec(((drop["slot"] as num) - 1) * 7, 0, 0);
+    drawMech(line c);
+    sitMech(line c);
+    global modeOf[uuid] = drop["mode"] as str;
+}

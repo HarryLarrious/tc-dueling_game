@@ -134,7 +134,7 @@ function mainAction(action: str): num {
             default.sendMessage(s"<gray>Only your party leader can queue.");
             return 1;
         }
-        default.sendMessage(s"<gray>The queue selector arrives with MEC-74.");
+        menuOpen("queue");
         return 1;
     }
     if (action == "customize") {

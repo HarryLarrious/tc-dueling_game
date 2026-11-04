@@ -445,7 +445,16 @@ translucent panels and a class cockpit frame (cockpit reference).
   Shop, cosmetic credits, upgrade points on the right.
 - **Main**: map selector with preview, queue selector, robot customizer, party
   display (up to 5 party mechs in 3D).
-- **Queue selector**: FFA, Extraction and Training ground cards.
+- **Queue selector**: FFA, Extraction and Training ground cards. As built
+  (MEC-74, `ui/queue.tc` + `game/queue.tc`): PLAY opens it for the party
+  leader (members are told only the leader queues). Cards TRAINING GROUND,
+  RANKED (Extraction, the tall middle card) and CASUAL (FFA) with what is at
+  stake, plus the map's live mech count. A join needs room for the whole
+  party under the 20-mech cap; then every member is dropped in by their own
+  menu loop (`dropPending`). Until FFA (MEC-65), Extraction (MEC-67) and the
+  AI (MEC-61) exist, a drop spawns each member's mech side by side at the
+  arena (7 blocks apart), seats them and records the mode in `modeOf`; those
+  tickets replace the drop with insertion points and sessions.
 - **Settings** (MEC-76): screen effects full / reduced / off, screen shake
   on / off, cursor speed 0.5× / 0.75× / 1× / 1.5× / 2× (the menu cursor's
   travel per degree of camera turn, carried to the text shader on the cursor

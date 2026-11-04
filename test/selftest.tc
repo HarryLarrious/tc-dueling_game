@@ -18,8 +18,8 @@ function selfTestOnJoin(): num {
  * "fx" (each screen effect for 12 s), "cockpit" (frame, crosshair and gun
  * reticle for 15 s), "menu" (the main menu for 15 s), "custom" (the
  * customizer for 15 s), "settings" (the settings screen for 15 s) or
- * "party" (the main screen with a party of three and an invite, 15 s), for
- * screenshots. */
+ * "party" (the main screen with a party of three and an invite, 15 s) or
+ * "queue" (the queue selector, 15 s), for screenshots. */
 function selfTestDemo(): str {
     return "";
 }
@@ -314,6 +314,7 @@ function runSelfTest {
     line bars = global hudSent[default.uuid] as list;
     checkNum("hud three bars", line bars.len(), 3, 0);
 
+    testQueue();
     clearMechs();
     line passed = global testPass;
     line failed = global testFail;
@@ -387,6 +388,12 @@ function runSelfTest {
         global partyOf = {};
         global partyList = {};
         global partyInvite = {};
+    } else if (selfTestDemo() == "queue") {
+        hudReset(line me2);
+        menuOpen("queue");
+        default.sendMessage(s"<gold>MECHTEST FX queue");
+        wait(300);
+        menuClose();
     } else if (selfTestDemo() == "settings") {
         hudReset(line me2);
         menuOpen("settings");
@@ -595,6 +602,31 @@ function testParty {
     for (line t of ["ta", "tb", "tc", "td", "te"]) {
         global playerNames.remove("test-%var(t)");
     }
+}
+
+/** Queue checks (MEC-74): the cap, the selector, leader-only joins and a
+ * drop into the player's own mech. Leaves the mech and clears it after. */
+function testQueue {
+    line me = default.uuid;
+    checkNum("party fits under the cap", queueFits(18, 2), 1, 0);
+    checkNum("party over the cap", queueFits(19, 2), 0, 0);
+    global playerNames["test-ta"] = "Tester_ta";
+    partyInviteUuid("test-ta", line me);
+    partyAccept(line me);
+    checkStr("member cannot queue", queueJoin(line me, "ffa"), "only your party leader can queue");
+    partyLeave(line me);
+    global playerNames.remove("test-ta");
+    menuOpen("main");
+    menuAction("queue");
+    checkStr("queue selector open", (global menuOf[line me] as dict)["screen"] as str, "queue");
+    checkStr("hit ranked card", menuHitAt(vec(0, 15, 0)), "join_extraction");
+    checkStr("hit casual card", menuHitAt(vec(150, 15, 0)), "join_ffa");
+    menuClickAt(vec(150, 15, 0));
+    checkNum("drop closes the menu", menuIsOpen(line me), 0, 0);
+    checkNum("dropped into a mech", num.min(mechOf(line me), 1), 1, 0);
+    checkStr("mode recorded", global modeOf[line me] as str, "ffa");
+    leaveMech();
+    global modeOf.remove(line me);
 }
 
 /** Join hook: runs the self-test a second after the player enters play

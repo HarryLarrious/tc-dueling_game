@@ -113,13 +113,16 @@ function menuRemoveEnt(ent: str) {
 
 /** Widgets of screen `id` for the player. Screens: "main"
  * (ui/mainscreen.tc), "custom" (ui/customizer.tc), "settings"
- * (ui/settings.tc). */
+ * (ui/settings.tc), "queue" (ui/queue.tc). */
 function menuScreen(id: str): list {
     if (id == "custom") {
         return customScreen(default.uuid);
     }
     if (id == "settings") {
         return settingsScreen(default.uuid);
+    }
+    if (id == "queue") {
+        return queueScreen(default.uuid);
     }
     return mainScreen(default.uuid);
 }
@@ -311,6 +314,11 @@ process menuLoop {
         if (menuIsOpen(default.uuid) != 1) {
             break;
         }
+        // A party drop (game/queue.tc) closes the menu and seats the player.
+        if (global dropPending.hasKeys(default.uuid)) {
+            dropIn();
+            break;
+        }
         if (global menuDirty.hasKeys(default.uuid)) {
             global menuDirty.remove(default.uuid);
             menuOpen((global menuOf[default.uuid] as dict)["screen"] as str);
@@ -350,7 +358,7 @@ function menuAction(action: str) {
         menuOpen("main");
     } else if (action == "close" || action == "back") {
         menuClose();
-    } else if (mainAction(action) == 0 && settingsAction(action) == 0) {
+    } else if (mainAction(action) == 0 && settingsAction(action) == 0 && queueAction(action) == 0) {
         customAction(action);
     }
 }

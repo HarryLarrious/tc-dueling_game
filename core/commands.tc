@@ -270,6 +270,8 @@ playerevent join {
 playerevent leave {
     fxDrop(default.uuid);
     partyDrop(default.uuid);
+    global dropPending.remove(default.uuid);
+    global modeOf.remove(default.uuid);
 }
 
 /** Pilots never leave their mech (owner, MEC-95): dismounting is cancelled
