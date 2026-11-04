@@ -1,0 +1,13 @@
+{
+  "providers": [
+    {
+      "type": "bitmap",
+      "file": "mech:font/minimap/dot.png",
+      "height": 6,
+      "ascent": -240,
+      "chars": [
+        "\ue310"
+      ]
+    }
+  ]
+}

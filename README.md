@@ -43,6 +43,8 @@ class skeletons of placeholder parts, `@cpu` gauge). Next: the Stage 1 spikes in
 | `ui/schema.tc` | Damage schema and shield bar on the pilot's HUD |
 | `ui/schemafont.tc` | Generated schema glyph table (`pack/src/schema_assets.py`) |
 | `ui/fx.tc` | Screen effects per player through the glowing marker (zoom, shake, EMP, HRB, visor, low HP, death fade) |
+| `ui/partyhud.tc` | Party list and minimap on the pilot's HUD |
+| `ui/minimapfont.tc` | Generated minimap glyph table (`pack/src/minimap_assets.py`) |
 | `ui/weapon.tc` | Weapon panel: guns with damage, shot speed and cooldowns; F/Q augment states |
 | `ui/cockpit.tc` | Cockpit frame per class, weapon crosshair, gun reticle display |
 | `ui/cockpitfont.tc` | Generated cockpit glyph table (`pack/src/cockpit_assets.py`) |

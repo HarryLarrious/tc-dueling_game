@@ -1,0 +1,13 @@
+{
+  "providers": [
+    {
+      "type": "bitmap",
+      "file": "mech:font/minimap/frame.png",
+      "height": 82,
+      "ascent": -222,
+      "chars": [
+        "\ue300"
+      ]
+    }
+  ]
+}

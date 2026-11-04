@@ -17,6 +17,7 @@ function mechTick {
     debrisTick();
     augTick();
     weaponTick();
+    partyHudTick();
 }
 
 /** Starts the mech loop unless one already ran within the last few ticks. */

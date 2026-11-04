@@ -1,0 +1,148 @@
+{
+  "providers": [
+    {
+      "type": "bitmap",
+      "file": "mech:font/minimap/arrow_0.png",
+      "height": 12,
+      "ascent": -285,
+      "chars": [
+        "\ue3a0"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/minimap/arrow_1.png",
+      "height": 12,
+      "ascent": -285,
+      "chars": [
+        "\ue3a1"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/minimap/arrow_2.png",
+      "height": 12,
+      "ascent": -285,
+      "chars": [
+        "\ue3a2"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/minimap/arrow_3.png",
+      "height": 12,
+      "ascent": -285,
+      "chars": [
+        "\ue3a3"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/minimap/arrow_4.png",
+      "height": 12,
+      "ascent": -285,
+      "chars": [
+        "\ue3a4"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/minimap/arrow_5.png",
+      "height": 12,
+      "ascent": -285,
+      "chars": [
+        "\ue3a5"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/minimap/arrow_6.png",
+      "height": 12,
+      "ascent": -285,
+      "chars": [
+        "\ue3a6"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/minimap/arrow_7.png",
+      "height": 12,
+      "ascent": -285,
+      "chars": [
+        "\ue3a7"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/minimap/arrow_8.png",
+      "height": 12,
+      "ascent": -285,
+      "chars": [
+        "\ue3a8"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/minimap/arrow_9.png",
+      "height": 12,
+      "ascent": -285,
+      "chars": [
+        "\ue3a9"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/minimap/arrow_10.png",
+      "height": 12,
+      "ascent": -285,
+      "chars": [
+        "\ue3aa"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/minimap/arrow_11.png",
+      "height": 12,
+      "ascent": -285,
+      "chars": [
+        "\ue3ab"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/minimap/arrow_12.png",
+      "height": 12,
+      "ascent": -285,
+      "chars": [
+        "\ue3ac"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/minimap/arrow_13.png",
+      "height": 12,
+      "ascent": -285,
+      "chars": [
+        "\ue3ad"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/minimap/arrow_14.png",
+      "height": 12,
+      "ascent": -285,
+      "chars": [
+        "\ue3ae"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "mech:font/minimap/arrow_15.png",
+      "height": 12,
+      "ascent": -285,
+      "chars": [
+        "\ue3af"
+      ]
+    }
+  ]
+}

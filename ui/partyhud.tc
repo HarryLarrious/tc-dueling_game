@@ -1,0 +1,150 @@
+// Party list and minimap (PLAN.md, UI and HUD; MEC-57), on the left of the
+// pilot's HUD, panel "party" at the top-left anchor in bar slot 0.
+//
+// Party list (top left): you, then up to 4 party members, each with their
+// mech's state: class and hull HP colored by HP, DESTROYED, or IN MENU.
+// Minimap (bottom left, ui/minimapfont.tc): the whole map north-up in a
+// disc, the party's mechs as cyan dots and your own as a white arrow
+// pointing your heading. The map's top-down image replaces the plain disc
+// with MEC-64; until then the map is minimapCenter() +- minimapHalf().
+// Rebuilt only when something shown changed, checked every 5 ticks.
+
+/** Party panel signature last shown per pilot (uuid -> text). */
+declare global partyHudSig: dict;
+
+/** Map center the minimap shows (MEC-64 replaces it with the map's). */
+function minimapCenter(): vec {
+    return vec(global arenaX, 0, global arenaZ);
+}
+
+/** Half the map's side in blocks (the 300 x 300 map). */
+function minimapHalf(): num {
+    return 150;
+}
+
+/** Canvas offset (x right, y down) of world point p on the minimap,
+ * clamped to the disc's edge. */
+function minimapPoint(p: vec): vec {
+    line r = minimapGeometry()[1] as num;
+    line rel = (p - minimapCenter()) * (r / minimapHalf());
+    line flat = vec(line rel.x, line rel.z, 0);
+    if (line flat.len() > line r) {
+        line flat = line flat.setLength(line r);
+    }
+    return line flat;
+}
+
+/** Mech state text and palette of player uuid: [text, palette]. */
+function memberStatus(uuid: str): list {
+    line c = mechOf(uuid);
+    if (line c == 0) {
+        return ["IN MENU", 1];
+    }
+    if (global mAlive[line c] != 1) {
+        return ["DESTROYED", 5];
+    }
+    line k = global mPartStart[line c];
+    line hp = num.ceil(global hbHp[line k]);
+    line cls = (global mClass[line c] as str).setCase(case="UPPERCASE");
+    return ["%var(cls)  %var(hp)", hpPalette(global hbHp[line k] / global hbHpMax[line k])];
+}
+
+/** The party panel's items for player uuid piloting mech c. */
+function partyHudItems(uuid: str, c: num): list {
+    // Clear of every class's top-left frame strut (ui/cockpit.tc).
+    line out = [hudItem("PARTY", "s", 1, 34, 4, "left")];
+    // You first, then the others in party order.
+    line order = [uuid];
+    for (line m of partyMembers(uuid)) {
+        if (line m as str != uuid) {
+            line order.append(line m);
+        }
+    }
+    repeat (line i to line order.len()) {
+        line m = line order[line i] as str;
+        line row = 6 + (line i - 1) * 3;
+        line name = nameOf(line m).setCase(case="UPPERCASE");
+        line pal = 0;
+        if (line m == uuid) {
+            line name = "YOU";
+            line pal = 3;
+        }
+        line st = memberStatus(line m);
+        line out.append(hudItem(line name, "m", line pal, 34, line row, "left"));
+        line out.append(hudItem(line st[1] as str, "m", line st[2] as num, 122, line row, "left"));
+    }
+
+    // Minimap: disc, party dots, your arrow.
+    line geo = minimapGeometry();
+    line r = line geo[1] as num;
+    line cx = line geo[2] as num;
+    line frame = minimapFrame();
+    line out.append(hudGlyph(line frame[1] as str, "mech:minimap", line frame[3] as num, 3, line frame[2] as num));
+    line dot = minimapDot();
+    for (line mv of line order) {
+        line m = line mv as str;
+        line mc = mechOf(line m);
+        if (line m != uuid && line mc != 0 && global mAlive[line mc] == 1) {
+            line at = minimapPoint(global mPos[line mc]);
+            line j = num.round(line at.y) + line r;
+            line out.append(hudGlyph(line dot[1] as str, "mech:minimap/d%var(j)", line dot[3] as num, 3, line cx + line at.x - (line dot[2] as num) / 2 - 1));
+        }
+    }
+    line at = minimapPoint(global mPos[c]);
+    line size = minimapArrowSize();
+    line step = line size[1] as num;
+    line j = num.round((line at.y + line r) / line step);
+    line yaw = global mYaw[c] % 360;
+    if (line yaw < 0) {
+        line yaw += 360;
+    }
+    line k = num.round(line yaw / 22.5) % 16;
+    line arrow = minimapArrows()[line k + 1] as list;
+    line out.append(hudGlyph(line arrow[1] as str, "mech:minimap/a%var(j)", line arrow[2] as num, 0, line cx + line at.x - (line size[2] as num) / 2));
+    return line out;
+}
+
+/** Shows or refreshes the party panel of mech c's pilot when it changed. */
+function partyHudUpdate(c: num) {
+    line pilot = global mDriver[c];
+    if (line pilot == "") {
+        return;
+    }
+    line items = partyHudItems(line pilot, c);
+    // Every item's text, font, palette and place make the signature.
+    line sig = "";
+    for (line it of line items) {
+        line d = line it as dict;
+        line t = d["text"] as str;
+        line p = d["palette"] as num;
+        line x = d["x"] as num;
+        line sig = line sig + "|" + line t + "%var(p)/%var(x)";
+        if (d.hasKeys("font")) {
+            line sig = line sig + (d["font"] as str);
+        }
+    }
+    if (global partyHudSig.hasKeys(line pilot) && global partyHudSig[line pilot] as str == line sig) {
+        return;
+    }
+    global partyHudSig[line pilot] = line sig;
+    hudSet(line pilot, "party", 0, 0, line items);
+    hudFlush(line pilot);
+}
+
+/** Every 5 ticks: every piloted mech's party panel. */
+function partyHudTick {
+    if (game.ticksSinceStartup % 5 != 0) {
+        return;
+    }
+    repeat (line c to global mCount) {
+        if (global mAlive[line c] == 1) {
+            partyHudUpdate(line c);
+        }
+    }
+}
+
+/** Takes the party panel off player uuid's HUD. */
+function partyHudHide(uuid: str) {
+    global partyHudSig.remove(uuid);
+    hudRemove(uuid, "party");
+}

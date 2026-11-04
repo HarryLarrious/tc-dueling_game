@@ -510,6 +510,20 @@ translucent panels and a class cockpit frame (cockpit reference).
   writes. The mech loop checks every pilot every tick and rebuilds the
   panel only when a status text changes (whole seconds). Verified on Plot
   206003 (2026-11-03) by screenshot.
+  Party list and minimap as built (MEC-57, `ui/partyhud.tc` +
+  `pack/src/minimap_assets.py`): panel "party" at the top-left anchor, bar
+  slot 0. The list (clear of the frame struts) shows YOU then each member
+  with their mech's class and hull HP colored by HP, DESTROYED or IN MENU.
+  The minimap is a north-up disc (radius 40 units, centered 86 right and
+  270 down from the top-left, clear of every class's frame) showing the
+  whole map, `minimapCenter()` +- `minimapHalf()` (150 blocks; MEC-64
+  swaps in the map's metadata and its top-down image for the plain disc).
+  Members' mechs are cyan dots, yours a white arrow in 16 headings. Bitmap
+  glyph heights are baked into their ascent, so each dot height (1 unit
+  steps) and arrow height (2 unit steps) is its own font,
+  `mech:minimap/d<j>` and `mech:minimap/a<j>`, all sharing a few PNGs. The
+  panel is rebuilt every 5 ticks only when something shown changed.
+  Verified on Plot 206003 (2026-11-03) by screenshot.
 
 **How it is drawn**
 

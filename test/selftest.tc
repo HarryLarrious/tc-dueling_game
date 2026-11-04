@@ -21,8 +21,8 @@ function selfTestOnJoin(): num {
  * "party" (the main screen with a party of three and an invite, 15 s),
  * "queue" (the queue selector, 15 s), "hrb" (an HRB warning ring 10
  * blocks ahead for 10 s, then the strike) or "weapon" (piloting with the
- * weapon panel, a gun cooling down and an augment active, 15 s), for
- * screenshots. */
+ * weapon panel, a gun cooling down, an augment active and a stand-in party
+ * member on the party list and minimap, 15 s), for screenshots. */
 function selfTestDemo(): str {
     return "";
 }
@@ -319,6 +319,7 @@ function runSelfTest {
 
     testAugments();
     testWeaponPanel();
+    testPartyHud();
     testQueue();
     clearMechs();
     line passed = global testPass;
@@ -404,8 +405,19 @@ function runSelfTest {
         sitMech(line w);
         global gunReadyAt["%var(w)-main"] = game.ticksSinceStartup + 200;
         augUse(line w, 2);
+        // A stand-in party member piloting a spider 20 blocks east.
+        global playerNames["test-ta"] = "Tester_ta";
+        partyInviteUuid(line me2, "test-ta");
+        partyAccept("test-ta");
+        spawnMech(defaultLoadout("spider"));
+        line s = global mCount;
+        global mDriver[line s] = "test-ta";
+        global mPos[line s] = global mPos[line w] + vec(20, 0, 0);
         default.sendMessage(s"<gold>MECHTEST FX weapon");
         wait(300);
+        global mDriver[line s] = "";
+        partyLeave("test-ta");
+        global playerNames.remove("test-ta");
         clearMechs();
     } else if (selfTestDemo() == "hrb") {
         // A walker's HRB marked 10 blocks ahead of the player for 10 s,
@@ -751,6 +763,40 @@ function testWeaponPanel {
     checkStr("other augment ready", (line items[10] as dict)["text"] as str, "READY");
     leaveMech();
     checkNum("weapon panel gone", panelItems(line me, "weapon").len(), 0, 0);
+}
+
+/** Party list and minimap checks (MEC-57) with a stand-in party member
+ * piloting a second mech. */
+function testPartyHud {
+    line me = default.uuid;
+    spawnMech(defaultLoadout("walker"));
+    line c = global mCount;
+    sitMech(line c);
+    global mYaw[line c] = 90;
+    partyHudUpdate(line c);
+    line items = panelItems(line me, "party");
+    checkNum("solo party panel", line items.len(), 5, 0);
+    checkStr("you first", (line items[2] as dict)["text"] as str, "YOU");
+    checkStr("your mech status", (line items[3] as dict)["text"] as str, "WALKER  440");
+    checkStr("arrow faces yaw 90", (line items[5] as dict)["text"] as str, (minimapArrows()[5] as list)[1] as str);
+    global playerNames["test-ta"] = "Tester_ta";
+    partyInviteUuid(line me, "test-ta");
+    partyAccept("test-ta");
+    spawnMech(defaultLoadout("spider"));
+    line m = global mCount;
+    global mDriver[line m] = "test-ta";
+    partyHudUpdate(line c);
+    line items = panelItems(line me, "party");
+    checkNum("member line and dot", line items.len(), 8, 0);
+    checkStr("member status", (line items[5] as dict)["text"] as str, "SPIDER  165");
+    checkNum("member dot", ((line items[7] as dict)["font"] as str).find("mech:minimap/d"), 1, 0);
+    checkNum("far point clamps to the rim", minimapPoint(minimapCenter() + vec(1000, 0, 0)).len(), 40, 0.01);
+    checkNum("map center is the disc center", minimapPoint(minimapCenter()).len(), 0, 0);
+    global mDriver[line m] = "";
+    partyLeave("test-ta");
+    global playerNames.remove("test-ta");
+    leaveMech();
+    checkNum("party panel gone", panelItems(line me, "party").len(), 0, 0);
 }
 
 /** Queue checks (MEC-74): the cap, the selector, leader-only joins and a
