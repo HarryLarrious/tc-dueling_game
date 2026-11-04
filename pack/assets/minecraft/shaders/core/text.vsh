@@ -118,7 +118,7 @@ void main() {
             vec2 local = vec2(Position.x, -Position.y) * MECH_TEXT_PX_PER_BLOCK;
             bool cursor = mark.x == MECH_CURSOR;
             vec2 origin = cursor
-                ? mech_cursor_point(mech_look_degrees(ModelViewMat), canvas)
+                ? mech_cursor_point(mech_look_degrees(ModelViewMat), canvas, mark.y)
                 : mech_anchor(mark.y, canvas);
             float layer = cursor ? CURSOR_LAYER : clamp(Position.z, -0.03, 1.0);
             gl_Position = panel_position(origin + local, layer);

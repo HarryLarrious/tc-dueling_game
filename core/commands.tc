@@ -255,6 +255,7 @@ playerevent join {
     default.setToCreativeMode();
     restartLoop();
     pdLoad(default.uuid);
+    settingsApply(default.uuid);
     packJoin();
     packSend();
     privHideFrom(default.uuid);

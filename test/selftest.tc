@@ -16,8 +16,9 @@ function selfTestOnJoin(): num {
 
 /** Visual demo after the checks: "" none, "hud" (the demo HUD for 10 s),
  * "fx" (each screen effect for 12 s), "cockpit" (frame, crosshair and gun
- * reticle for 15 s), "menu" (the main menu for 15 s) or "custom" (the
- * customizer for 15 s), for screenshots. */
+ * reticle for 15 s), "menu" (the main menu for 15 s), "custom" (the
+ * customizer for 15 s) or "settings" (the settings screen for 15 s), for
+ * screenshots. */
 function selfTestDemo(): str {
     return "";
 }
@@ -302,6 +303,7 @@ function runSelfTest {
     checkNum("back closes the menu", menuIsOpen(line me), 0, 0);
 
     testPlayerData();
+    testSettings();
 
     hudReset(default.uuid);
     hudDemo(default.uuid);
@@ -365,6 +367,12 @@ function runSelfTest {
         hudReset(line me2);
         menuOpen("custom");
         default.sendMessage(s"<gold>MECHTEST FX custom");
+        wait(300);
+        menuClose();
+    } else if (selfTestDemo() == "settings") {
+        hudReset(line me2);
+        menuOpen("settings");
+        default.sendMessage(s"<gold>MECHTEST FX settings");
         wait(300);
         menuClose();
     } else if (selfTestDemo() == "menu") {
@@ -445,6 +453,49 @@ function testPlayerData {
     }
     check("full record under 2000 chars", line small, "%var(size)", "< 2000");
     saved "pd %var(me)" = line keep;
+}
+
+/** Settings checks (MEC-76): the screen, saved choices, the effect bits they
+ * allow and the cursor speed. The player's record is put back at the end. */
+function testSettings {
+    line me = default.uuid;
+    line keep = pdOf(line me);
+    saved "pd %var(me)" = {};
+    settingsApply(line me);
+    checkNum("effects allowed by default", global fxAllowedOf[line me] as num, 255, 0);
+    menuOpen("main");
+    menuAction("settings");
+    checkStr("settings open", (global menuOf[line me] as dict)["screen"] as str, "settings");
+    checkStr("hit effects reduced", menuHitAt(vec(38, 0 - 40, 0)), "fx_reduced");
+    menuClickAt(vec(38, 0 - 40, 0));
+    checkStr("effects saved", setFx(line me), "reduced");
+    checkNum("reduced drops visor and tint", global fxAllowedOf[line me] as num, 187, 0);
+    // The marker carries the cockpit visor (64) only while effects allow it.
+    fxCockpit(line me, 1);
+    checkStr("reduced marker has no visor", global fxSent[line me] as str, fxColor(0, 0, 15));
+    menuAction("set fx full");
+    checkStr("full marker has the visor", global fxSent[line me] as str, fxColor(64, 0, 15));
+    menuAction("set fx off");
+    checkNum("off keeps zoom and fade", global fxAllowedOf[line me] as num, 9, 0);
+    menuAction("set fx full");
+    menuAction("set shake 0");
+    checkNum("shake off", global fxAllowedOf[line me] as num, 253, 0);
+    menuAction("set sens 8");
+    checkNum("cursor speed saved", cursorPerDegree(line me), 8, 0);
+    line w = (global menuOf[line me] as dict)["widgets"] as list;
+    line green = 0;
+    for (line wv of line w) {
+        if ((line wv as dict)["id"] as str == "sens_8" && (line wv as dict)["palette"] as num == 6) {
+            line green = 1;
+        }
+    }
+    checkNum("current choice green", line green, 1, 0);
+    menuAction("home");
+    checkStr("settings back home", (global menuOf[line me] as dict)["screen"] as str, "main");
+    menuClose();
+    fxCockpit(line me, 0);
+    saved "pd %var(me)" = line keep;
+    settingsApply(line me);
 }
 
 /** Join hook: runs the self-test a second after the player enters play

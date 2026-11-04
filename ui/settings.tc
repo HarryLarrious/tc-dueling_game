@@ -1,0 +1,124 @@
+// Settings screen (MEC-76): screen effects full / reduced / off, screen
+// shake on / off and cursor speed, saved per player in the "set" dict of the
+// player record (game/playerdata.tc). Effects and shake filter the bits the
+// screen-effect marker carries (fxAllowedOf, ui/fx.tc); cursor speed rides
+// on the cursor marker (green channel a: a / 4 times the base speed, 0 =
+// 1x) so the text shader and menuCursor map the camera the same way.
+
+/** Screen-effect bits allowed per player (uuid -> mask), from the settings. */
+declare global fxAllowedOf: dict;
+
+/** Effects level: "full", "reduced" or "off". */
+function setFx(uuid: str): str {
+    return playerSetting(uuid, "fx", "full") as str;
+}
+
+/** Screen shake: 1 on, 0 off. */
+function setShake(uuid: str): num {
+    return playerSetting(uuid, "shake", 1) as num;
+}
+
+/** Cursor speed step a (cursor speed = a / 4 times the base): 2, 3, 4, 6
+ * or 8. */
+function setCursorStep(uuid: str): num {
+    return playerSetting(uuid, "sens", 4) as num;
+}
+
+/** Cursor travel in canvas units per degree of camera turn. */
+function cursorPerDegree(uuid: str): num {
+    return setCursorStep(uuid);
+}
+
+/** Effect bits a player's settings allow. Reduced drops the cockpit visor
+ * (64) and the damage tint (4); off keeps only the scope zoom (1) and the
+ * death fade (8). Shake off drops shake + flash (2). */
+function fxAllowedMask(uuid: str): num {
+    line mask = 255;
+    if (setFx(uuid) == "reduced") {
+        line mask = 255 - 64 - 4;
+    } else if (setFx(uuid) == "off") {
+        line mask = 1 + 8;
+    }
+    if (setShake(uuid) == 0 && hasBit(line mask, 2) == 1) {
+        line mask -= 2;
+    }
+    return line mask;
+}
+
+/** Applies the player's settings: caches the allowed effect bits and resends
+ * the effect marker and menu cursor. Runs on join and on every change. */
+function settingsApply(uuid: str) {
+    global fxAllowedOf[uuid] = fxAllowedMask(uuid);
+    if (global fxMark.hasKeys(uuid)) {
+        fxApply(uuid);
+    }
+    if (global menuOf.hasKeys(uuid)) {
+        select entitiesByName((global menuOf[uuid] as dict)["cursor"] as str);
+        selectedEntity.setTextDisplayText(uiGlyph("", uiColor(244, setCursorStep(uuid), 0)));
+        select reset;
+    }
+}
+
+/** A row of choice buttons: label on the left, one button per choice, the
+ * current one in green. */
+function settingsRow(key: str, label: str, y: num, choices: list, labels: list, current: str): list {
+    line out = [menuLabel("lbl_%var(key)", label, "text", -100, y, 0)];
+    repeat (line i to choices.len()) {
+        line value = choices[line i] as str;
+        line b = menuButton("%var(key)_%var(value)", labels[line i] as str, 0 - 10 + (line i - 1) * 48, y, 44, 18, "set %var(key) %var(value)");
+        if (line value == current) {
+            line b["palette"] = 6;
+            line b["hover"] = 6;
+        }
+        line out.append(line b);
+    }
+    return line out;
+}
+
+/** Widgets of the settings screen for the player. */
+function settingsScreen(uuid: str): list {
+    line cr = playerCredits(uuid);
+    line pts = playerPoints(uuid);
+    line s = setShake(uuid);
+    line c = setCursorStep(uuid);
+    line out = [
+        menuPanel("topbar", 0, -160, 470, 26, 2, 0.6),
+        menuButton("home", "BACK", -195, -160, 60, 16, "home"),
+        menuLabel("title", "SETTINGS", "text", -125, -160, 3),
+        menuButton("shop", "SHOP", 90, -160, 50, 16, "shop"),
+        menuLabel("credits", "CREDITS %var(cr)", "text_s", 150, -160, 4),
+        menuLabel("points", "POINTS %var(pts)", "text_s", 205, -160, 6),
+        menuPanel("box", 40, 5, 400, 150, 0, 0.5)
+    ];
+    line rows = [
+        settingsRow("fx", "SCREEN EFFECTS", -40, ["full", "reduced", "off"], ["FULL", "REDUCED", "OFF"], setFx(uuid)),
+        settingsRow("shake", "SCREEN SHAKE", -5, ["1", "0"], ["ON", "OFF"], "%var(s)"),
+        settingsRow("sens", "CURSOR SPEED", 30, ["2", "3", "4", "6", "8"], ["0.5X", "0.75X", "1X", "1.5X", "2X"], "%var(c)")
+    ];
+    for (line row of line rows) {
+        for (line w of line row as list) {
+            line out.append(line w);
+        }
+    }
+    line out.append(menuLabel("note", "REDUCED HIDES THE VISOR AND DAMAGE TINT. OFF KEEPS ONLY ZOOM AND THE DEATH FADE.", "text_s", 40, 65, 1));
+    return line out;
+}
+
+/** Settings actions ("set <key> <value>"); 1 when the action was one. */
+function settingsAction(action: str): num {
+    if (action.find("set ") != 1) {
+        return 0;
+    }
+    line uuid = default.uuid;
+    line words = action.split(" ");
+    line key = line words[2] as str;
+    line value = line words[3] as str;
+    if (line key == "fx") {
+        pdSetSub(uuid, "set", "fx", line value);
+    } else {
+        pdSetSub(uuid, "set", line key, num.parse(line value));
+    }
+    settingsApply(uuid);
+    menuOpen("settings");
+    return 1;
+}

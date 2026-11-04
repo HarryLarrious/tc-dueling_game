@@ -83,7 +83,9 @@ function fxEnsure(uuid: str) {
 /** Sends the player's marker color if it changed. */
 function fxApply(uuid: str) {
     fxEnsure(uuid);
-    line color = fxColor(fxMaskOf(uuid), fxGet(global fxPower, uuid, 0), fxGet(global fxPartyOf, uuid, 15));
+    // The player's settings filter the bits (ui/settings.tc).
+    line mask = fxMaskOf(uuid) & fxGet(global fxAllowedOf, uuid, 255);
+    line color = fxColor(line mask, fxGet(global fxPower, uuid, 0), fxGet(global fxPartyOf, uuid, 15));
     if (global fxSent.hasKeys(uuid) && global fxSent[uuid] as str == line color) {
         return;
     }

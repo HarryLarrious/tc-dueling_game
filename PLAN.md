@@ -432,6 +432,11 @@ translucent panels and a class cockpit frame (cockpit reference).
 - **Main**: map selector with preview, queue selector, robot customizer, party
   display (up to 5 party mechs in 3D).
 - **Queue selector**: FFA, Extraction and Training ground cards.
+- **Settings** (MEC-76): screen effects full / reduced / off, screen shake
+  on / off, cursor speed 0.5× / 0.75× / 1× / 1.5× / 2× (the menu cursor's
+  travel per degree of camera turn, carried to the text shader on the cursor
+  marker; the camera clamp widens or narrows to match). Saved per player in
+  the record's `set` dict; applied on join and on each change.
 - **Robot customizer**: categories (type, main gun, secondary gun, armor,
   augments, cosmetics), the options for the chosen category, a 3D mech
   preview.
@@ -495,7 +500,7 @@ translucent panels and a class cockpit frame (cockpit reference).
   | Channel | Value |
   | --- | --- |
   | red | kind: `252` HUD glyph in a boss bar title, `248` screen-locked panel, `244` cursor, `240` world glyph (stays in the world: smooth, full bright, no fog; the gun reticle) |
-  | green | `128 + 4·a`; HUD: `a = anchor·3 + bar slot` (slot 0–2); panel: `a = anchor`; cursor: `a = 0` |
+  | green | `128 + 4·a`; HUD: `a = anchor·3 + bar slot` (slot 0–2); panel: `a = anchor`; cursor: `a` = cursor speed step (travel `4·a/4` units per degree; `0` = 1×) |
   | blue | `128 + 4·c`; `c` = palette index (0 white, 1 grey, 2 dark grey, 3 cyan, 4 amber, 5 red, 6 green) |
 
   `a` and `c` are 0–30. Anchors 0–8 run in reading order (0 top-left,
@@ -758,7 +763,11 @@ post effect whenever a glowing entity is on screen, and the pack replaces it:
 | Party outlines | Always: every mech glows in its party-id color; the post pass keeps only outlines that match your party id |
 
 Settings offer screen effects full / reduced / off and screen shake on / off;
-the server applies the choice when it builds the marker color.
+the server applies the choice when it builds the marker color. As built
+(MEC-76, `ui/settings.tc`): the marker's effect bits are ANDed with the
+bits the player's settings allow (`fxAllowedOf`): full allows all, reduced
+drops the cockpit visor (64) and damage tint (4), off keeps only the scope
+zoom (1) and the death fade (8); shake off drops shake + flash (2).
 
 **Effects as built** (`ui/fx.tc` + `mech:post/fx`, MEC-59): per player,
 persistent bits (`fxSetBit`, `fxCockpit` for the visor), timed pulses

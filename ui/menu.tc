@@ -109,10 +109,14 @@ function menuRemoveEnt(ent: str) {
 }
 
 /** Widgets of screen `id` for the player. Screens: "main"
- * (ui/mainscreen.tc), "custom" (ui/customizer.tc). */
+ * (ui/mainscreen.tc), "custom" (ui/customizer.tc), "settings"
+ * (ui/settings.tc). */
 function menuScreen(id: str): list {
     if (id == "custom") {
         return customScreen(default.uuid);
+    }
+    if (id == "settings") {
+        return settingsScreen(default.uuid);
     }
     return mainScreen(default.uuid);
 }
@@ -138,7 +142,7 @@ function menuOpen(id: str) {
         // Let the riding pose settle before reading the eye position.
         wait(2);
         line eye = default.eyeLocation;
-        game.spawnTextDisplay(loc(line eye.x, line eye.y, line eye.z, 0, 0), uiGlyph("", uiColor(244, 0, 0)));
+        game.spawnTextDisplay(loc(line eye.x, line eye.y, line eye.z, 0, 0), uiGlyph("", uiColor(244, setCursorStep(uuid), 0)));
         line cursor = lastEntity.uuid;
         select entitiesByName(line cursor);
         selectedEntity.setDisplayBillboard(type="Fixed");
@@ -196,7 +200,7 @@ function menuIsOpen(uuid: str): num {
 }
 
 /** The player's cursor as a canvas offset from the center, from yaw and
- * pitch (mech_cursor_point in mech:ui.glsl). */
+ * pitch at the player's cursor speed (mech_cursor_point in mech:ui.glsl). */
 function menuCursor(): vec {
     line view = default.location;
     line yaw: num = line view.getCoordinate(coord="Yaw");
@@ -207,7 +211,8 @@ function menuCursor(): vec {
         line yaw += 360;
     }
     line pitch: num = line view.getCoordinate(coord="Pitch");
-    return vec(4 * line yaw, 4 * line pitch, 0);
+    line k = cursorPerDegree(default.uuid);
+    return vec(line k * line yaw, line k * line pitch, 0);
 }
 
 /** Id of the button under the player's cursor, or "". */
@@ -277,7 +282,8 @@ function menuPreviewTick {
 }
 
 /** Keeps the camera inside the canvas (a 16:9 canvas is 640 x 360 units:
- * yaw within +-78, pitch within +-43 degrees). */
+ * at 4 units per degree yaw within +-78, pitch within +-43 degrees; a
+ * faster cursor turns less, a slower one more, pitch at most 89). */
 function menuClampView {
     line view = default.location;
     line yaw: num = line view.getCoordinate(coord="Yaw");
@@ -288,8 +294,9 @@ function menuClampView {
         line yaw += 360;
     }
     line pitch: num = line view.getCoordinate(coord="Pitch");
-    line cy = num.clamp(line yaw, -78, 78);
-    line cp = num.clamp(line pitch, -43, 43);
+    line k = cursorPerDegree(default.uuid) / 4;
+    line cy = num.clamp(line yaw, -78 / line k, 78 / line k);
+    line cp = num.clamp(line pitch, num.max(-43 / line k, -89), num.min(43 / line k, 89));
     if (line cy != line yaw || line cp != line pitch) {
         default.setRotation(line cp, line cy);
     }
@@ -335,7 +342,7 @@ function menuAction(action: str) {
         menuOpen("main");
     } else if (action == "close" || action == "back") {
         menuClose();
-    } else if (mainAction(action) == 0) {
+    } else if (mainAction(action) == 0 && settingsAction(action) == 0) {
         customAction(action);
     }
 }

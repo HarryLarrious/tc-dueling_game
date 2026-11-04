@@ -4,7 +4,8 @@
 // Marked UI glyphs carry their data in the text color (PLAN.md, UI and HUD):
 //   red   = kind: 252 HUD glyph (boss bar title), 248 screen-locked panel, 244 cursor,
 //           240 world glyph (stays in the world; smooth, full bright, no fog)
-//   green = 128 + 4 * a   HUD: anchor * 3 + bar slot; panel: anchor; cursor: 0
+//   green = 128 + 4 * a   HUD: anchor * 3 + bar slot; panel: anchor;
+//           cursor: speed step (a / 4 times MECH_CURSOR_PER_DEG; 0 = 1x)
 //   blue  = 128 + 4 * c   palette index
 // a and c are 0..30. Vanilla draws a text shadow in color * 0.25 (floored), so a
 // shadow copy reads red 63 / 62 / 61 / 60, green 32 + a, blue 32 + c.
@@ -75,9 +76,11 @@ vec2 mech_look_degrees(mat4 modelView) {
     return degrees(vec2(atan(-forward.x, forward.z), asin(clamp(-forward.y, -1.0, 1.0))));
 }
 
-// Where the cursor sits on the canvas; the server uses the same mapping.
-vec2 mech_cursor_point(vec2 lookDegrees, vec2 canvas) {
-    return clamp(canvas * 0.5 + lookDegrees * MECH_CURSOR_PER_DEG, vec2(0.0), canvas);
+// Where the cursor sits on the canvas at speed step `step` (the player's
+// cursor speed setting); the server uses the same mapping.
+vec2 mech_cursor_point(vec2 lookDegrees, vec2 canvas, int step) {
+    float speed = step == 0 ? 1.0 : float(step) / 4.0;
+    return clamp(canvas * 0.5 + lookDegrees * MECH_CURSOR_PER_DEG * speed, vec2(0.0), canvas);
 }
 
 #endif

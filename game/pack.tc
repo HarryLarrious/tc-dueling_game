@@ -11,7 +11,7 @@ declare global packState: dict;
 
 /** The published pack (tools/build_pack.py --publish prints it). */
 function packUrl(): str {
-    return "https://raw.githubusercontent.com/HarryLarrious/tc-mech_game/pack-dist/mech-pack-22041b744fec.zip";
+    return "https://raw.githubusercontent.com/HarryLarrious/tc-mech_game/pack-dist/mech-pack-908536508fdc.zip";
 }
 
 /** Sends the pack to the player and shows the loading title. */
