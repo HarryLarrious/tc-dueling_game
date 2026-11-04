@@ -1,7 +1,7 @@
 // Player input events, routed by what the player is doing. Each DF event can
 // be declared once per project, so every system adds its branch here: menus
-// (ui/menu.tc), augments on F and Q (combat/augment.tc), firing and aiming
-// when piloting (MEC-42).
+// (ui/menu.tc), augments on F and Q (combat/augment.tc), middle-click pings
+// (ui/combatfeed.tc), firing and aiming when piloting (MEC-42).
 
 playerevent leftClick {
     if (menuIsOpen(default.uuid) == 1) {
@@ -41,4 +41,16 @@ playerevent swapHands {
 playerevent dropItem {
     event.cancel();
     augPress(2);
+}
+
+/** Middle click on a block or an entity while piloting: a ping for the
+ * party (ui/combatfeed.tc). Always cancelled. */
+playerevent pickBlock {
+    event.cancel();
+    pingPress();
+}
+
+playerevent pickEntity {
+    event.cancel();
+    pingPress();
 }

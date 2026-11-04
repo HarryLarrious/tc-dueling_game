@@ -1,0 +1,202 @@
+// Hit markers, killfeed and pings (PLAN.md, UI and HUD; MEC-58).
+//
+// Hit marker: when a mech with a pilot damages another mech (applyHit with
+// a source), its pilot sees the part hit and the damage under the crosshair
+// for a second (panel "hitmark", center anchor, bar slot 0), with a tick
+// sound; a destroyed part reads DESTROYED in red.
+// Killfeed: every destroyed mech adds "<killer> > <victim>" (pilot names,
+// else the mech number) at the top right of every pilot's HUD (panel
+// "killfeed", top-right anchor, bar slot 0, under the frame strut) for 6 s,
+// newest first, at most 4 lines.
+// Pings: middle click (pickBlock / pickEntity, cancelled) while piloting
+// casts the pilot's look ray up to 64 blocks; a world marker (text display,
+// world glyph kind 240) marks the spot, or the mech hit with ENEMY or ALLY,
+// for 6 s, seen only by the pilot's party. One ping per player; a new one
+// replaces the old. Piloting raises the interaction range to 64 so the
+// middle click reaches that far.
+
+/** Hit marker end tick per pilot (uuid -> tick). */
+declare global hitMarkUntil: dict;
+/** Killfeed lines, newest first: [{text, until}]. */
+declare global killFeed: list;
+/** Ping per player (uuid -> {ent, until}). */
+declare global pingOf: dict;
+
+/** Ticks a hit marker, a killfeed line and a ping stay. */
+function hitMarkTicks(): num {
+    return 20;
+}
+
+function killFeedTicks(): num {
+    return 120;
+}
+
+function pingTicks(): num {
+    return 120;
+}
+
+/** Shows mech `source`'s pilot that it hit part `part` of mech c for
+ * `dealt` damage. */
+function hitMark(source: num, c: num, part: num, dealt: num) {
+    if (source < 1 || source > global mCount || global mDriver[source] == "" || dealt <= 0) {
+        return;
+    }
+    line pilot = global mDriver[source];
+    line k = global mPartStart[c] + part;
+    line role = (global mPartRole[line k] as str).setCase(case="UPPERCASE");
+    line n = num.ceil(dealt);
+    line text = line role + "  " + "%var(n)";
+    line pal = 4;
+    if (global hbHp[line k] <= 0) {
+        line text = line role + "  DESTROYED";
+        line pal = 5;
+    }
+    hudSet(line pilot, "hitmark", 4, 0, [hudItem(line text, "s", line pal, 0, 4, "center")]);
+    hudFlush(line pilot);
+    global hitMarkUntil[line pilot] = game.ticksSinceStartup + hitMarkTicks();
+    select playersByName(line pilot);
+    selected.playSound(snd("Arrow Hit Player"));
+    select reset;
+}
+
+/** Name for mech c in the feed: its pilot's name, else "MECH <c>". */
+function feedName(c: num, pilot: str): str {
+    if (pilot != "") {
+        return nameOf(pilot).setCase(case="UPPERCASE");
+    }
+    return "MECH %var(c)";
+}
+
+/** Adds mech c's destruction (piloted by `pilot`) to the killfeed. */
+function killFeedAdd(c: num, pilot: str) {
+    line by = global mLastHit[c];
+    line lost = feedName(c, pilot);
+    line text = line lost + " DESTROYED";
+    if (line by != 0) {
+        line text = feedName(line by, global mDriver[line by]) + "  >  " + line lost;
+    }
+    global killFeed.insert(1, {text: line text, until: game.ticksSinceStartup + killFeedTicks()});
+    while (global killFeed.len() > 4) {
+        global killFeed.pop();
+    }
+    killFeedShow();
+}
+
+/** The killfeed's items. */
+function killFeedItems(): list {
+    line out = [];
+    repeat (line i to global killFeed.len()) {
+        line e = global killFeed[line i] as dict;
+        line out.append(hudItem(e["text"] as str, "s", 0, -34, 4 + (line i - 1) * 2, "right"));
+    }
+    return line out;
+}
+
+/** Sends the killfeed to every pilot. */
+function killFeedShow {
+    line items = killFeedItems();
+    repeat (line c to global mCount) {
+        line pilot = global mDriver[line c];
+        if (line pilot != "") {
+            if (line items.len() == 0) {
+                hudRemove(line pilot, "killfeed");
+            } else {
+                hudSet(line pilot, "killfeed", 2, 0, line items);
+            }
+            hudFlush(line pilot);
+        }
+    }
+}
+
+/** The player's ping: casts their look ray and marks what it hits for
+ * their party. */
+function pingPress {
+    line me = default.uuid;
+    line c = mechOf(me);
+    if (line c == 0) {
+        return;
+    }
+    line eye = default.eyeLocation;
+    line p0 = vec(line eye.x, line eye.y, line eye.z);
+    line stop = game.raycast(line eye, 64, blockCollision="Solid blocks");
+    line p1 = vec(line stop.x, line stop.y, line stop.z);
+    line hit = segmentHit(line p0, line p1, line c);
+    line target = line hit["mech"] as num;
+    line at = line p1;
+    line label = "PING";
+    line pal = 3;
+    if (line target != 0) {
+        line at = global mBoundAt[line target] + vec(0, global mBound[line target] + 0.5, 0);
+        line label = "ENEMY";
+        line pal = 5;
+        if (global mDriver[line target] != "" && allied(me, global mDriver[line target]) == 1) {
+            line label = "ALLY";
+            line pal = 6;
+        }
+    }
+    pingRemove(me);
+    line dist = (line at - line p0).len();
+    game.spawnTextDisplay(loc(line at.x, line at.y + 0.6, line at.z), uiText("text", "V " + line label, uiColor(240, 0, line pal)));
+    line ent = lastEntity.uuid;
+    select entitiesByName(line ent);
+    selectedEntity.setDisplayBillboard(type="Center");
+    selectedEntity.setTextDisplayBackground("#000000", 0);
+    selectedEntity.setDisplayViewRange(128);
+    // Readable from far away: grows with distance.
+    line s = num.max(1, line dist / 8);
+    selectedEntity.setDisplayScale(line s, line s, line s);
+    select reset;
+    // Hidden from everyone but the pinger (and later joiners), then shown
+    // to the rest of the party.
+    privAdd(me, line ent);
+    for (line m of partyMembers(me)) {
+        if (line m as str != me) {
+            select playersByName(line m as str);
+            selected.setEntityHidden([line ent], hidden="Disable");
+            select reset;
+        }
+    }
+    global pingOf[me] = {ent: line ent, until: game.ticksSinceStartup + pingTicks()};
+    for (line m of partyMembers(me)) {
+        select playersByName(line m as str);
+        selected.playSound(snd("Bell"));
+        select reset;
+    }
+}
+
+/** Removes player uuid's ping, if any. */
+function pingRemove(uuid: str) {
+    if (global pingOf.hasKeys(uuid)) {
+        line ent = (global pingOf[uuid] as dict)["ent"] as str;
+        select entitiesByName(line ent);
+        selectedEntity.remove();
+        select reset;
+        privForget(line ent);
+        global pingOf.remove(uuid);
+    }
+}
+
+/** Per tick: hit markers, killfeed lines and pings that ran out. */
+function combatFeedTick {
+    line now = game.ticksSinceStartup;
+    for (line uuid, line until of global hitMarkUntil) {
+        if (line until as num <= line now) {
+            global hitMarkUntil.remove(line uuid as str);
+            hudRemove(line uuid as str, "hitmark");
+            hudFlush(line uuid as str);
+        }
+    }
+    line expired = 0;
+    while (global killFeed.len() > 0 && ((global killFeed[global killFeed.len()] as dict)["until"] as num) <= line now) {
+        global killFeed.pop();
+        line expired = 1;
+    }
+    if (line expired == 1) {
+        killFeedShow();
+    }
+    for (line uuid, line p of global pingOf) {
+        if (((line p as dict)["until"] as num) <= line now) {
+            pingRemove(line uuid as str);
+        }
+    }
+}

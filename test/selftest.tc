@@ -22,7 +22,9 @@ function selfTestOnJoin(): num {
  * "queue" (the queue selector, 15 s), "hrb" (an HRB warning ring 10
  * blocks ahead for 10 s, then the strike) or "weapon" (piloting with the
  * weapon panel, a gun cooling down, an augment active and a stand-in party
- * member on the party list and minimap, 15 s), for screenshots. */
+ * member on the party list and minimap, 15 s) or "feed" (piloting: a mech
+ * ahead pinged and hit every second, another destroyed for the killfeed,
+ * 15 s), for screenshots. */
 function selfTestDemo(): str {
     return "";
 }
@@ -320,6 +322,7 @@ function runSelfTest {
     testAugments();
     testWeaponPanel();
     testPartyHud();
+    testCombatFeed();
     testQueue();
     clearMechs();
     line passed = global testPass;
@@ -394,6 +397,28 @@ function runSelfTest {
         global partyOf = {};
         global partyList = {};
         global partyInvite = {};
+    } else if (selfTestDemo() == "feed") {
+        // Piloting: a target mech ahead pinged and hit, another destroyed.
+        hudReset(line me2);
+        spawnMech(defaultLoadout("walker"));
+        line a = global mCount;
+        sitMech(line a);
+        wait(10);
+        line eye = default.eyeLocation;
+        line ahead = forwardVec();
+        spawnMech(defaultLoadout("crawler"));
+        line b = global mCount;
+        testPlace(line b, vec(line eye.x, global floorY, line eye.z) + vec(line ahead.x, 0, line ahead.z).setLength(14), global mYaw[line a] + 180);
+        spawnMech(defaultLoadout("spider"));
+        line d = global mCount;
+        applyHit(line d, 0, 100000, vec(0, 0, 0), line a);
+        pingPress();
+        default.sendMessage(s"<gold>MECHTEST FX feed");
+        repeat (15) {
+            applyHit(line b, 1, 20, vec(0, 0, 0), line a);
+            wait(20);
+        }
+        clearMechs();
     } else if (selfTestDemo() == "weapon") {
         // Piloting a walker with the main gun cooling down and F active.
         hudReset(line me2);
@@ -797,6 +822,38 @@ function testPartyHud {
     global playerNames.remove("test-ta");
     leaveMech();
     checkNum("party panel gone", panelItems(line me, "party").len(), 0, 0);
+}
+
+/** Hit marker, killfeed and ping checks (MEC-58). */
+function testCombatFeed {
+    line me = default.uuid;
+    spawnMech(defaultLoadout("walker"));
+    line a = global mCount;
+    sitMech(line a);
+    spawnMech(defaultLoadout("walker"));
+    line b = global mCount;
+    applyHit(line b, 1, 50, vec(0, 0, 0), line a);
+    line items = panelItems(line me, "hitmark");
+    checkNum("hit marker shown", line items.len(), 1, 0);
+    checkStr("hit marker names part and damage", (line items[1] as dict)["text"] as str, "TORSO  45");
+    global hitMarkUntil[line me] = 0;
+    combatFeedTick();
+    checkNum("hit marker expires", panelItems(line me, "hitmark").len(), 0, 0);
+    global killFeed = [];
+    applyHit(line b, 0, 100000, vec(0, 0, 0), line a);
+    line want = nameOf(line me).setCase(case="UPPERCASE") + "  >  MECH %var(b)";
+    checkStr("killfeed line", (global killFeed[1] as dict)["text"] as str, line want);
+    checkNum("killfeed on the HUD", panelItems(line me, "killfeed").len(), 1, 0);
+    checkStr("kill marker", (panelItems(line me, "hitmark")[1] as dict)["text"] as str, "HULL  DESTROYED");
+    pingPress();
+    checkNum("ping placed", global pingOf.hasKeys(line me), 1, 0);
+    line ent = (global pingOf[line me] as dict)["ent"] as str;
+    global pingOf[line me] = {ent: line ent, until: 0};
+    combatFeedTick();
+    checkNum("ping expires", global pingOf.hasKeys(line me), 0, 0);
+    global killFeed = [];
+    killFeedShow();
+    leaveMech();
 }
 
 /** Queue checks (MEC-74): the cap, the selector, leader-only joins and a

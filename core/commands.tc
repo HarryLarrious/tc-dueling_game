@@ -117,6 +117,8 @@ function leaveMech {
     line c = mechOf(default.uuid);
     if (line c != 0) {
         global mDriver[line c] = "";
+        default.setReachAttribute(4.5, attr="Block interaction range");
+        default.setReachAttribute(3, attr="Entity interaction range");
         schemaHide(default.uuid);
         fxCockpit(default.uuid, 0);
         cockpitHide(default.uuid);
@@ -142,6 +144,9 @@ function sitMech(c: num) {
     // only while the player drives a mech.
     default.rideEntity(global mSeat[line c]);
     global mDriver[line c] = default.uuid;
+    // Middle-click pings reach 64 blocks (ui/combatfeed.tc).
+    default.setReachAttribute(64, attr="Block interaction range");
+    default.setReachAttribute(64, attr="Entity interaction range");
     schemaUpdate(line c);
     fxCockpit(default.uuid, 1);
     cockpitShow(default.uuid, line c);
@@ -280,6 +285,7 @@ playerevent join {
 playerevent leave {
     fxDrop(default.uuid);
     partyDrop(default.uuid);
+    pingRemove(default.uuid);
     global dropPending.remove(default.uuid);
     global modeOf.remove(default.uuid);
 }

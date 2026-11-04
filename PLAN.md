@@ -524,6 +524,18 @@ translucent panels and a class cockpit frame (cockpit reference).
   `mech:minimap/d<j>` and `mech:minimap/a<j>`, all sharing a few PNGs. The
   panel is rebuilt every 5 ticks only when something shown changed.
   Verified on Plot 206003 (2026-11-03) by screenshot.
+  Hit markers, killfeed and pings as built (MEC-58, `ui/combatfeed.tc`):
+  `applyHit` with a source shows that mech's pilot the part and damage
+  under the crosshair for a second (amber; DESTROYED in red) with a hit
+  sound. `destroyMech` adds "KILLER  >  VICTIM" (pilot names, else MECH n)
+  to a killfeed at the top right of every pilot's HUD, newest first, 4
+  lines, 6 s each. Middle click (`pickBlock` / `pickEntity`, cancelled)
+  while piloting pings: the eye ray (64 blocks; piloting raises both
+  interaction ranges to 64 so the click reaches) marks the spot, or the mech
+  hit as ENEMY / ALLY, with a world-glyph text display that grows with
+  distance, for 6 s, shown only to the party (privAdd, then unhidden for the
+  members); one ping per player. Hit marker and killfeed verified on Plot
+  206003 (2026-11-03) by screenshot.
 
 **How it is drawn**
 

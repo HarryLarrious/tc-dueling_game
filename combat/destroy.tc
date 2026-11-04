@@ -42,6 +42,7 @@ function destroyMech(c: num) {
     } else {
         allPlayers.sendMessage(s"<gray>Mech <white>%var(c)</white> was destroyed by mech <white>%var(by)</white>.");
     }
+    killFeedAdd(c, line pilot);
     if (line pilot != "") {
         pilotLost(c, line pilot);
     }
