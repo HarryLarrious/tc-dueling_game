@@ -1,0 +1,32 @@
+// Internal Repair Torch (PLAN.md, Augments; MEC-52): over its 15 s
+// duration, once a second, every damaged part of the mech gains 10% / 15 of
+// its max HP, so a full run repairs 10%. Parts at 0 HP stay destroyed; no
+// part goes over its max.
+
+/** Repair Torch tick for mech c, `left` ticks before the end: a repair step
+ * on each whole second of the 300-tick duration (left 300, 280, ... 20). */
+function repairTick(c: num, left: num) {
+    if (left % 20 == 0) {
+        repairStep(c);
+    }
+}
+
+/** One repair step on mech c; returns how many parts it repaired. */
+function repairStep(c: num): num {
+    line n = 0;
+    repeat (line i to global mPartCount[c]) {
+        line k = global mPartStart[c] + line i - 1;
+        line hp = global hbHp[line k];
+        line max = global hbHpMax[line k];
+        if (line hp > 0 && line hp < line max) {
+            global hbHp[line k] = num.min(line max, line hp + line max * 0.1 / 15);
+            line n += 1;
+        }
+    }
+    if (line n > 0) {
+        schemaUpdate(c);
+        // Clears the low-HP pulse once the hull is back above 30%.
+        fxHit(c, 0);
+    }
+    return line n;
+}

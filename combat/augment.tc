@@ -78,8 +78,9 @@ function augDisable(c: num, ticks: num) {
     }
 }
 
-/** Per tick: ends the effects of augments whose duration ran out (their
- * active timer is then cleared, so each ends once). */
+/** Per tick: runs the effects of active augments (augEffectTick) and ends
+ * those whose duration ran out (their active timer is then cleared, so each
+ * ends once). */
 function augTick {
     line now = game.ticksSinceStartup;
     for (line key, line value of global augState) {
@@ -93,6 +94,8 @@ function augTick {
                 line st[line k] = 0;
                 line changed = 1;
                 augEffectEnd(line c, line slot as num, augSlotId(line c, line slot as num));
+            } else if (line until > line now && global mAlive[line c] == 1) {
+                augEffectTick(line c, line slot as num, augSlotId(line c, line slot as num), line until - line now);
             }
         }
         if (line changed == 1) {
@@ -105,6 +108,14 @@ function augTick {
  * branches: Black Powder MEC-47, Dome MEC-48, HMP MEC-49, EMP MEC-50,
  * HRB MEC-51, Repair Torch MEC-52). */
 function augEffectStart(c: num, slot: num, id: str) {
+}
+
+/** One tick of augment id's effect on mech c, `left` ticks before its
+ * duration runs out. */
+function augEffectTick(c: num, slot: num, id: str, left: num) {
+    if (id == "repair") {
+        repairTick(c, left);
+    }
 }
 
 /** Ends augment id's effect for mech c when its duration runs out. */

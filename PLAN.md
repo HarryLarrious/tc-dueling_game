@@ -223,7 +223,13 @@ the pilot's EMP static) or `lost` (its module or the mech is destroyed).
 `augTick` (mech loop) ends each effect once when its duration runs out. The
 augment tickets (MEC-47..52) fill `augEffectStart` / `augEffectEnd`; the
 weapon panel (MEC-56) reads `augStatus` / `augLeft`. Until then the pilot
-gets a chat line per press.
+gets a chat line per press. `augEffectTick(c, slot, id, left)` runs every
+tick while an augment is active.
+
+- **Repair Torch as built** (MEC-52, `combat/aug_repair.tc`): a repair step
+  on each whole second of the 300-tick duration (15 steps), each adding
+  10%/15 of max HP to every damaged part that is not destroyed, capped at
+  max; the schema and the low-HP pulse update after each step.
 
 | Augment | Effect | Implementation |
 | --- | --- | --- |

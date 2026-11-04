@@ -641,6 +641,27 @@ function testAugments {
     testKill(line c, 5);
     checkStr("lost module", augStatus(line c, 2), "lost");
     checkStr("other module works", augStatus(line c, 1), "ready");
+
+    // Repair Torch (MEC-52): 15 steps of 10%/15 of max HP each; destroyed
+    // parts stay destroyed and nothing goes over its max.
+    line lo["aug1"] = "repair";
+    line lo["aug2"] = "emp";
+    spawnMech(line lo);
+    line r = global mCount;
+    line hull = global mPartStart[line r];
+    line max = global hbHpMax[line hull];
+    global hbHp[line hull] = line max * 0.5;
+    global hbHp[line hull + 2] = global hbHpMax[line hull + 2] - 1;
+    testKill(line r, 3);
+    checkStr("repair used", augUse(line r, 1), "");
+    line until = augOf(line r)["active1"] as num;
+    // Every tick of the duration, as augTick would run them.
+    repeat (line t to 300) {
+        augEffectTick(line r, 1, "repair", line until - (game.ticksSinceStartup + line t - 1));
+    }
+    checkNum("repair adds 10% in all", global hbHp[line hull], line max * 0.6, 0.05);
+    checkNum("repair caps at max", global hbHp[line hull + 2], global hbHpMax[line hull + 2], 0);
+    checkNum("destroyed part stays destroyed", global hbHp[line hull + 3], 0, 0);
 }
 
 /** Queue checks (MEC-74): the cap, the selector, leader-only joins and a
