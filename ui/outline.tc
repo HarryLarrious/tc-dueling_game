@@ -1,0 +1,104 @@
+// Party outlines through walls (PLAN.md, Post effects; MEC-60). Every party
+// gets one of the 14 outline colors (the first not used by another live
+// party). A piloted mech in a party glows in its party's color on every part
+// display; the pack's entity_outline post pass keeps only the outlines in
+// the viewer's own color, which their screen-effect marker carries (fx.tc,
+// blue = 240 + color index; 15 = none for solo players). So party members
+// see each other through walls and nobody sees enemies. Mechs without a
+// pilot or with a solo pilot do not glow.
+
+/** Outline color index (1..14) per party ("<id>" -> index). */
+declare global partyColorOf: dict;
+/** Glow color per mech ("<c>" -> "#RRGGBB"; missing = not glowing). */
+declare global mechGlow: dict;
+
+/** Outline glow color of color index i (1..14), the same table as
+ * mech_party_color in mech:fx.glsl. */
+function outlineColor(i: num): str {
+    line colors = ["#E64040", "#E68740", "#E6CE40", "#B6E640", "#6FE640", "#40E658", "#40E69F",
+        "#40E6E6", "#409FE6", "#4058E6", "#6F40E6", "#B640E6", "#E640CE", "#E64087"];
+    return line colors[num.clamp(i, 1, 14)] as str;
+}
+
+/** Color index of party id (assigned on first use, the first free one). */
+function partyColorIndex(id: num): num {
+    line key = "%var(id)";
+    if (global partyColorOf.hasKeys(line key)) {
+        return global partyColorOf[line key] as num;
+    }
+    // Drop colors of parties that are gone (after the loop: removing
+    // entries while iterating a dict skips the next one), then take the
+    // first free one.
+    line used = [];
+    line gone: list[str] = [];
+    for (line k, line i of global partyColorOf) {
+        if (global partyList.hasKeys(line k as str)) {
+            line used.append(line i);
+        } else {
+            line gone.append(line k as str);
+        }
+    }
+    for (line k of line gone) {
+        global partyColorOf.remove(line k as str);
+    }
+    line pick = 1;
+    while (line used.find(line pick) != 0 && line pick < 14) {
+        line pick += 1;
+    }
+    global partyColorOf[line key] = line pick;
+    return line pick;
+}
+
+/** Outline color index of player uuid: their party's, or 15 (none) solo. */
+function outlineIndexOf(uuid: str): num {
+    line id = partyIdOf(uuid);
+    if (line id == 0) {
+        return 15;
+    }
+    return partyColorIndex(line id);
+}
+
+/** Makes mech c glow in its pilot's party color, or stop glowing. */
+function mechOutline(c: num) {
+    line color = "";
+    line pilot = global mDriver[c];
+    if (global mAlive[c] == 1 && line pilot != "" && partyIdOf(line pilot) != 0) {
+        line color = outlineColor(outlineIndexOf(line pilot));
+    }
+    line key = "%var(c)";
+    line was = "";
+    if (global mechGlow.hasKeys(line key)) {
+        line was = global mechGlow[line key] as str;
+    }
+    if (line color == line was) {
+        return;
+    }
+    repeat (line i to global mPartCount[c]) {
+        select entitiesByName(global mPartEnt[global mPartStart[c] + line i - 1]);
+        if (line color == "") {
+            selectedEntity.setGlowing(glowing="Disable");
+        } else {
+            selectedEntity.setGlowing(glowing="Enable");
+            selectedEntity.setDisplayGlowColor(line color);
+        }
+        select reset;
+    }
+    if (line color == "") {
+        global mechGlow.remove(line key);
+    } else {
+        global mechGlow[line key] = line color;
+    }
+}
+
+/** Refreshes player uuid's outline filter and their mech's glow (after a
+ * party change, boarding or leaving). */
+function outlineRefresh(uuid: str) {
+    global fxPartyOf[uuid] = outlineIndexOf(uuid);
+    if (global fxMark.hasKeys(uuid)) {
+        fxApply(uuid);
+    }
+    line c = mechOf(uuid);
+    if (line c != 0) {
+        mechOutline(line c);
+    }
+}

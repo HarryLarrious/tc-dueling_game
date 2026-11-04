@@ -94,10 +94,12 @@ function partyStore(id: num, members: list) {
     }
 }
 
-/** Redraws the menus of players (the menu loop rebuilds a dirty screen). */
+/** Redraws the menus of players (the menu loop rebuilds a dirty screen)
+ * and refreshes their party outlines (ui/outline.tc). */
 function partyRefresh(members: list) {
     for (line m of members) {
         global menuDirty[line m as str] = 1;
+        outlineRefresh(line m as str);
     }
 }
 

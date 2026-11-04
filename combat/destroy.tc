@@ -13,6 +13,7 @@ function destroyMech(c: num) {
         return;
     }
     global mAlive[c] = 0;
+    mechOutline(c);
     line at = global mBoundAt[c];
     line here = loc(line at.x, line at.y, line at.z);
     allPlayers.displayParticleEffect(par("Explosion Emitter"), line here);

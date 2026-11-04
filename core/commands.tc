@@ -48,6 +48,7 @@ function clearMechs {
         select reset;
     }
     global augState = {};
+    global mechGlow = {};
     global hrbAt = {};
     global gunReadyAt = {};
     global mRad = [];
@@ -118,6 +119,7 @@ function leaveMech {
     if (line c != 0) {
         global mDriver[line c] = "";
         cockpitOwnParts(default.uuid, line c, 0);
+        mechOutline(line c);
         default.setReachAttribute(4.5, attr="Block interaction range");
         default.setReachAttribute(3, attr="Entity interaction range");
         schemaHide(default.uuid);
@@ -149,6 +151,7 @@ function sitMech(c: num) {
     default.setReachAttribute(64, attr="Block interaction range");
     default.setReachAttribute(64, attr="Entity interaction range");
     cockpitOwnParts(default.uuid, line c, 1);
+    outlineRefresh(default.uuid);
     schemaUpdate(line c);
     fxCockpit(default.uuid, 1);
     cockpitShow(default.uuid, line c);
@@ -277,6 +280,10 @@ playerevent join {
     pdLoad(default.uuid);
     global playerNames[default.uuid] = default.name;
     settingsApply(default.uuid);
+    // Everyone carries a screen-effect marker: without one the outline pass
+    // would show every party's outlines (ui/outline.tc).
+    outlineRefresh(default.uuid);
+    fxApply(default.uuid);
     packJoin();
     packSend();
     privHideFrom(default.uuid);

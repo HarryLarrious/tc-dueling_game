@@ -179,12 +179,18 @@ function pingRemove(uuid: str) {
 /** Per tick: hit markers, killfeed lines and pings that ran out. */
 function combatFeedTick {
     line now = game.ticksSinceStartup;
+    // Removing dict entries while iterating skips the next one: collect
+    // first, then remove.
+    line done: list[str] = [];
     for (line uuid, line until of global hitMarkUntil) {
         if (line until as num <= line now) {
-            global hitMarkUntil.remove(line uuid as str);
-            hudRemove(line uuid as str, "hitmark");
-            hudFlush(line uuid as str);
+            line done.append(line uuid as str);
         }
+    }
+    for (line uuid of line done) {
+        global hitMarkUntil.remove(line uuid as str);
+        hudRemove(line uuid as str, "hitmark");
+        hudFlush(line uuid as str);
     }
     line expired = 0;
     while (global killFeed.len() > 0 && ((global killFeed[global killFeed.len()] as dict)["until"] as num) <= line now) {
@@ -194,9 +200,13 @@ function combatFeedTick {
     if (line expired == 1) {
         killFeedShow();
     }
+    line old: list[str] = [];
     for (line uuid, line p of global pingOf) {
         if (((line p as dict)["until"] as num) <= line now) {
-            pingRemove(line uuid as str);
+            line old.append(line uuid as str);
         }
+    }
+    for (line uuid of line old) {
+        pingRemove(line uuid as str);
     }
 }

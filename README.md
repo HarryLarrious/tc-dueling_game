@@ -46,6 +46,7 @@ class skeletons of placeholder parts, `@cpu` gauge). Next: the Stage 1 spikes in
 | `ui/partyhud.tc` | Party list and minimap on the pilot's HUD |
 | `ui/minimapfont.tc` | Generated minimap glyph table (`pack/src/minimap_assets.py`) |
 | `ui/combatfeed.tc` | Hit markers, killfeed and middle-click party pings |
+| `ui/outline.tc` | Party outline colors: mech glow per party, the viewer's outline filter |
 | `ui/weapon.tc` | Weapon panel: guns with damage, shot speed and cooldowns; F/Q augment states |
 | `ui/cockpit.tc` | Cockpit frame per class, weapon crosshair, gun reticle display |
 | `ui/cockpitfont.tc` | Generated cockpit glyph table (`pack/src/cockpit_assets.py`) |

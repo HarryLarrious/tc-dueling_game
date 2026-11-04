@@ -24,7 +24,8 @@ function selfTestOnJoin(): num {
  * weapon panel, a gun cooling down, an augment active and a stand-in party
  * member on the party list and minimap, 15 s) or "feed" (piloting: a mech
  * ahead pinged and hit every second, another destroyed for the killfeed,
- * 15 s), for screenshots. */
+ * 15 s) or "outline" (piloting in a party: an ally's and an enemy's
+ * walker ahead, only the ally outlined, 15 s), for screenshots. */
 function selfTestDemo(): str {
     return "";
 }
@@ -323,6 +324,7 @@ function runSelfTest {
     testWeaponPanel();
     testPartyHud();
     testCombatFeed();
+    testOutlines();
     testQueue();
     clearMechs();
     line passed = global testPass;
@@ -397,6 +399,43 @@ function runSelfTest {
         global partyOf = {};
         global partyList = {};
         global partyInvite = {};
+    } else if (selfTestDemo() == "outline") {
+        // Piloting in a party: an ally's walker (outlined) and an enemy
+        // party's walker (not outlined) side by side ahead.
+        hudReset(line me2);
+        spawnMech(defaultLoadout("walker"));
+        line a = global mCount;
+        sitMech(line a);
+        wait(10);
+        line eye = default.eyeLocation;
+        line f = forwardVec();
+        line side = vec(0 - line f.z, 0, line f.x);
+        line front = vec(line eye.x, global floorY, line eye.z) + line f * 16;
+        global playerNames["test-ta"] = "Tester_ta";
+        global playerNames["test-tb"] = "Tester_tb";
+        global playerNames["test-tc"] = "Tester_tc";
+        partyInviteUuid(line me2, "test-ta");
+        partyAccept("test-ta");
+        partyInviteUuid("test-tb", "test-tc");
+        partyAccept("test-tc");
+        spawnMech(defaultLoadout("walker"));
+        line ally = global mCount;
+        global mDriver[line ally] = "test-ta";
+        testPlace(line ally, line front + line side * 5, global mYaw[line a]);
+        mechOutline(line ally);
+        spawnMech(defaultLoadout("walker"));
+        line enemy = global mCount;
+        global mDriver[line enemy] = "test-tb";
+        testPlace(line enemy, line front - line side * 5, global mYaw[line a]);
+        mechOutline(line enemy);
+        default.sendMessage(s"<gold>MECHTEST FX outline");
+        wait(300);
+        global mDriver[line ally] = "";
+        global mDriver[line enemy] = "";
+        global partyOf = {};
+        global partyList = {};
+        global partyInvite = {};
+        clearMechs();
     } else if (selfTestDemo() == "feed") {
         // Piloting: a target mech ahead pinged and hit, another destroyed.
         hudReset(line me2);
@@ -853,6 +892,50 @@ function testCombatFeed {
     checkNum("ping expires", global pingOf.hasKeys(line me), 0, 0);
     global killFeed = [];
     killFeedShow();
+    leaveMech();
+}
+
+/** Party outline checks (MEC-60) with stand-in party members. */
+function testOutlines {
+    line me = default.uuid;
+    global partyOf = {};
+    global partyList = {};
+    global partyColorOf = {};
+    spawnMech(defaultLoadout("walker"));
+    line c = global mCount;
+    sitMech(line c);
+    checkNum("solo filter shows none", global fxPartyOf[line me] as num, 15, 0);
+    checkNum("solo mech does not glow", global mechGlow.hasKeys("%var(c)"), 0, 0);
+    global playerNames["test-ta"] = "Tester_ta";
+    global playerNames["test-tb"] = "Tester_tb";
+    partyInviteUuid(line me, "test-ta");
+    partyAccept("test-ta");
+    line idx = partyColorIndex(partyIdOf(line me));
+    checkNum("party filter", global fxPartyOf[line me] as num, line idx, 0);
+    checkStr("party mech glows in its color", global mechGlow["%var(c)"] as str, outlineColor(line idx));
+    checkStr("marker carries the party", global fxSent[line me] as str, fxColor(64, 0, line idx));
+    // Another party takes the next free color.
+    partyInviteUuid("test-tb", "test-ta");
+    line other = partyColorIndex(partyIdOf("test-tb"));
+    checkNum("second party other color", num.min(num.abs(line other - line idx), 1), 1, 0);
+    // A gone party's color ahead of a live one: freed, and the live one
+    // still counts (removing while iterating used to skip it).
+    global partyColorOf = {};
+    global partyColorOf["9001"] = 3;
+    line mine = partyIdOf(line me);
+    global partyColorOf["%var(mine)"] = line idx;
+    partyStore(9003, ["test-tc"]);
+    checkNum("live color kept after a gone one", num.min(num.abs(partyColorIndex(9003) - line idx), 1), 1, 0);
+    checkNum("gone color freed", global partyColorOf.hasKeys("9001"), 0, 0);
+    partyStore(9003, []);
+    partyLeave("test-ta");
+    checkNum("disbanded: filter none", global fxPartyOf[line me] as num, 15, 0);
+    checkNum("disbanded: no glow", global mechGlow.hasKeys("%var(c)"), 0, 0);
+    global partyOf = {};
+    global partyList = {};
+    global partyInvite = {};
+    global playerNames.remove("test-ta");
+    global playerNames.remove("test-tb");
     leaveMech();
 }
 

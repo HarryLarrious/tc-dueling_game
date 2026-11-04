@@ -542,6 +542,17 @@ translucent panels and a class cockpit frame (cockpit reference).
   pilot only) and shown again on leaving or destruction (the wreck's debris
   stays visible). The reticle and crosshair show the aim; legs and augment
   modules stay in view.
+  Party outlines as built (MEC-60, `ui/outline.tc`; the settings half is
+  MEC-76): each party gets the first of the 14 outline colors no other
+  live party uses. A piloted mech whose pilot is in a party glows in that
+  color on every part display; solo-piloted and empty mechs do not glow.
+  Every player gets a screen-effect marker on join (without one the post
+  pass would show every outline); its blue channel carries the player's
+  color index, 15 = none when solo, so party members see each other through
+  walls and nobody sees other parties. Party changes, boarding, leaving and
+  destruction refresh the glow and the filter. Verified on Plot 206003
+  (2026-11-03) by screenshot: of two walkers ahead, only the ally's is
+  outlined.
 
 **How it is drawn**
 

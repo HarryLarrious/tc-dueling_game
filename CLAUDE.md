@@ -62,6 +62,9 @@ mechs per map, 60 live projectiles (PLAN.md, CPU rules).
   (`core/commands.tc`); add command branches there, never a second one.
 - DF numbers keep 3 decimals: keep positions and velocities as vectors, use
   0.001 as the smallest threshold.
+- Never remove entries from a dict while iterating it with `for (k, v of
+  d)`: DF then skips the entry after each removed one. Collect the keys in
+  a list and remove them after the loop.
 
 ## Ticket workflow (Jira project MEC)
 
