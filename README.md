@@ -28,6 +28,7 @@ class skeletons of placeholder parts, `@cpu` gauge). Next: the Stage 1 spikes in
 | `spike/cpu.tc`, `spike/pack.tc` | Stage 1 spikes: CPU test rigs (`@spike`), pack tests (`@pack @hud @menu @model @beep @fx @outline`); removed by MEC-23 |
 | `combat/damage.tc` | `applyHit` damage funnel: armor reduction, part HP, splash, impulses; `@hp @splash` |
 | `combat/loss.tc` | Part-loss effects per class (mobility, guns, torso lock, augments) and debris |
+| `combat/augment.tc` | Augment framework: F/Q slots, cooldowns and durations, EMP disable, lost modules |
 | `combat/destroy.tc` | Mech destruction: wreck effect, all parts to debris, seat removed, pilot handed to the mode |
 | `combat/hitbox.tc` | Part hitboxes (boxes and leg capsules from the drawn displays), segment and splash queries, `@hitbox @hit` |
 | `game/party.tc` | Parties of 1–5: invites (dialog or `@party`), accept, decline, leave, kick, leader, `allied` |

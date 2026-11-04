@@ -314,6 +314,7 @@ function runSelfTest {
     line bars = global hudSent[default.uuid] as list;
     checkNum("hud three bars", line bars.len(), 3, 0);
 
+    testAugments();
     testQueue();
     clearMechs();
     line passed = global testPass;
@@ -602,6 +603,44 @@ function testParty {
     for (line t of ["ta", "tb", "tc", "td", "te"]) {
         global playerNames.remove("test-%var(t)");
     }
+}
+
+/** Augment framework checks (MEC-46): use, active, cooldown, EMP, a lost
+ * module. Timers are moved by hand instead of waiting. */
+function testAugments {
+    line lo = defaultLoadout("walker");
+    line lo["aug1"] = "emp";
+    line lo["aug2"] = "repair";
+    spawnMech(line lo);
+    line c = global mCount;
+    line now = game.ticksSinceStartup;
+    checkStr("augment ready", augStatus(line c, 1), "ready");
+    checkStr("augment used", augUse(line c, 1), "");
+    checkStr("augment active", augStatus(line c, 1), "active");
+    checkNum("cooldown from catalog", augLeft(line c, "ready1"), 500, 2);
+    checkStr("no reuse while active", augUse(line c, 1), "active");
+    checkStr("other slot still ready", augStatus(line c, 2), "ready");
+    // The duration runs out: augTick ends it, the cooldown remains.
+    line st = augOf(line c);
+    line st["active1"] = line now - 1;
+    global augState["%var(c)"] = line st;
+    augTick();
+    checkNum("effect ended once", augOf(line c)["active1"] as num, 0, 0);
+    checkStr("cooling down", augStatus(line c, 1), "cooldown");
+    line st = augOf(line c);
+    line st["ready1"] = line now - 1;
+    global augState["%var(c)"] = line st;
+    checkStr("ready again", augStatus(line c, 1), "ready");
+    augDisable(line c, 100);
+    checkStr("emp blocks slot 1", augUse(line c, 1), "emp");
+    checkStr("emp blocks slot 2", augStatus(line c, 2), "emp");
+    checkNum("emp timer", augLeft(line c, "emp"), 100, 2);
+    line st = augOf(line c);
+    line st["emp"] = 0;
+    global augState["%var(c)"] = line st;
+    testKill(line c, 5);
+    checkStr("lost module", augStatus(line c, 2), "lost");
+    checkStr("other module works", augStatus(line c, 1), "ready");
 }
 
 /** Queue checks (MEC-74): the cap, the selector, leader-only joins and a

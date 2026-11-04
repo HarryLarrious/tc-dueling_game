@@ -1,0 +1,140 @@
+// Augment framework (PLAN.md, Augments; MEC-46). Each mech has two augment
+// slots, 1 on F (swapHands) and 2 on Q (dropItem), holding the loadout's
+// aug1 and aug2. Using one starts its duration and its cooldown (catalog
+// ticks). An augment can't be used while it is active or cooling down,
+// while an EMP has the mech's augments down (augDisable), or once its module
+// is destroyed (mLoss aug1Ok / aug2Ok). The effects themselves are the
+// augment tickets (MEC-47..52): they fill augEffectStart / augEffectEnd.
+//
+// State per mech, created on first use: "<c>" -> {ready1, active1, ready2,
+// active2, emp} as game ticks (ready = cooldown ends, active = duration
+// ends, emp = augments back up). The HUD (MEC-56) reads augStatus and
+// augLeft.
+
+/** Augment state per mech ("<c>" -> dict); reset with the mechs. */
+declare global augState: dict;
+
+/** Augment id in slot 1 or 2 of mech c. */
+function augSlotId(c: num, slot: num): str {
+    return (global mLoadout[c] as dict)["aug%var(slot)"] as str;
+}
+
+/** Augment state of mech c. */
+function augOf(c: num): dict {
+    if (global augState.hasKeys("%var(c)")) {
+        return global augState["%var(c)"] as dict;
+    }
+    return {ready1: 0, active1: 0, ready2: 0, active2: 0, emp: 0};
+}
+
+/** Ticks left on timer key of mech c (0 when it has run out). */
+function augLeft(c: num, key: str): num {
+    return num.max(0, (augOf(c)[key] as num) - game.ticksSinceStartup);
+}
+
+/** Slot state of mech c: "lost" (module or mech destroyed), "emp", "active",
+ * "cooldown" or "ready". */
+function augStatus(c: num, slot: num): str {
+    if (global mAlive[c] != 1 || (global mLoss[c])["aug%var(slot)Ok"] as num == 0) {
+        return "lost";
+    }
+    if (augLeft(c, "emp") > 0) {
+        return "emp";
+    }
+    if (augLeft(c, "active%var(slot)") > 0) {
+        return "active";
+    }
+    if (augLeft(c, "ready%var(slot)") > 0) {
+        return "cooldown";
+    }
+    return "ready";
+}
+
+/** Uses the augment in slot 1 or 2 of mech c. Returns "" when it started,
+ * or its status when it could not. */
+function augUse(c: num, slot: num): str {
+    line status = augStatus(c, slot);
+    if (line status != "ready") {
+        return line status;
+    }
+    line id = augSlotId(c, slot);
+    line now = game.ticksSinceStartup;
+    line st = augOf(c);
+    line st["ready%var(slot)"] = line now + partNum(line id, "cooldown");
+    line st["active%var(slot)"] = line now + partNum(line id, "duration");
+    global augState["%var(c)"] = line st;
+    augEffectStart(c, slot, line id);
+    return "";
+}
+
+/** EMP: mech c's augments are down for `ticks` (a longer EMP extends it),
+ * and its pilot sees the EMP static meanwhile. */
+function augDisable(c: num, ticks: num) {
+    line st = augOf(c);
+    line st["emp"] = num.max(st["emp"] as num, game.ticksSinceStartup + ticks);
+    global augState["%var(c)"] = line st;
+    if (global mDriver[c] != "") {
+        fxPulse(global mDriver[c], 16, ticks);
+    }
+}
+
+/** Per tick: ends the effects of augments whose duration ran out (their
+ * active timer is then cleared, so each ends once). */
+function augTick {
+    line now = game.ticksSinceStartup;
+    for (line key, line value of global augState) {
+        line st = line value as dict;
+        line c = num.parse(line key as str);
+        line changed = 0;
+        for (line slot of [1, 2]) {
+            line k = "active%var(slot)";
+            line until = line st[line k] as num;
+            if (line until > 0 && line until <= line now) {
+                line st[line k] = 0;
+                line changed = 1;
+                augEffectEnd(line c, line slot as num, augSlotId(line c, line slot as num));
+            }
+        }
+        if (line changed == 1) {
+            global augState[line key as str] = line st;
+        }
+    }
+}
+
+/** Starts augment id's effect for mech c (the augment tickets add their
+ * branches: Black Powder MEC-47, Dome MEC-48, HMP MEC-49, EMP MEC-50,
+ * HRB MEC-51, Repair Torch MEC-52). */
+function augEffectStart(c: num, slot: num, id: str) {
+}
+
+/** Ends augment id's effect for mech c when its duration runs out. */
+function augEffectEnd(c: num, slot: num, id: str) {
+}
+
+/** The pilot pressed F (slot 1) or Q (slot 2): uses that augment of their
+ * mech and says why when it can't. */
+function augPress(slot: num) {
+    line c = mechOf(default.uuid);
+    if (line c == 0) {
+        return;
+    }
+    line key = "F";
+    if (slot == 2) {
+        line key = "Q";
+    }
+    line name = partStr(augSlotId(line c, slot), "name");
+    line err = augUse(line c, slot);
+    if (line err == "") {
+        default.sendMessage(s"<aqua>%var(key)</aqua> <white>%var(name)");
+    } else if (line err == "lost") {
+        default.sendMessage(s"<red>%var(key) %var(name): module destroyed");
+    } else if (line err == "emp") {
+        line secs = num.ceil(augLeft(line c, "emp") / 2) / 10;
+        default.sendMessage(s"<yellow>%var(key) %var(name): augments down (EMP) for %var(secs) s");
+    } else if (line err == "active") {
+        default.sendMessage(s"<gray>%var(key) %var(name) is running");
+    } else {
+        line secs = num.ceil(augLeft(line c, "ready%var(slot)") / 2) / 10;
+        default.sendMessage(s"<gray>%var(key) %var(name) ready in %var(secs) s");
+    }
+}

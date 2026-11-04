@@ -1,7 +1,7 @@
 // The main loop: one guarded process advances every mech each tick.
 
 /** Advances every mech one tick: pilot input, push-out, drawing, then
- * debris. */
+ * debris and augment timers. */
 function mechTick {
     repeat (line c to global mCount) {
         if (global mAlive[line c] == 1) {
@@ -15,6 +15,7 @@ function mechTick {
         }
     }
     debrisTick();
+    augTick();
 }
 
 /** Starts the mech loop unless one already ran within the last few ticks. */

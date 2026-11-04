@@ -214,6 +214,17 @@ Every gun fires projectiles. References are in `references/weapons/`.
 Two augment slots per mech, on F and Q (list from `references/augment.txt`).
 Each has a cooldown; an EMP disables them for a while.
 
+**Framework as built** (MEC-46, `combat/augment.tc`): F (`swapHands`) uses
+slot 1 (loadout `aug1`), Q (`dropItem`) slot 2; both events are always
+cancelled so the blank hand item stays. A use starts the augment's duration
+and cooldown together (catalog ticks). A slot reports `ready`, `active`,
+`cooldown`, `emp` (an EMP's `augDisable(c, ticks)` puts both down and pulses
+the pilot's EMP static) or `lost` (its module or the mech is destroyed).
+`augTick` (mech loop) ends each effect once when its duration runs out. The
+augment tickets (MEC-47..52) fill `augEffectStart` / `augEffectEnd`; the
+weapon panel (MEC-56) reads `augStatus` / `augLeft`. Until then the pilot
+gets a chat line per press.
+
 | Augment | Effect | Implementation |
 | --- | --- | --- |
 | Black Powder | Your next two shots deal more damage and travel instantly | The next 2 shots use an instant ray test instead of a projectile |

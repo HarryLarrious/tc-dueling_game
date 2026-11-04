@@ -1,6 +1,7 @@
 // Player input events, routed by what the player is doing. Each DF event can
 // be declared once per project, so every system adds its branch here: menus
-// now (ui/menu.tc), firing and aiming when piloting (MEC-42).
+// (ui/menu.tc), augments on F and Q (combat/augment.tc), firing and aiming
+// when piloting (MEC-42).
 
 playerevent leftClick {
     if (menuIsOpen(default.uuid) == 1) {
@@ -26,4 +27,18 @@ playerevent changeSlot {
         }
         default.setHotbarSlot(1);
     }
+}
+
+/** F: augment 1 while piloting. Always cancelled, so the blank hand item
+ * (hideHand) stays put. */
+playerevent swapHands {
+    event.cancel();
+    augPress(1);
+}
+
+/** Q: augment 2 while piloting. Always cancelled (the hand item is never
+ * dropped). */
+playerevent dropItem {
+    event.cancel();
+    augPress(2);
 }

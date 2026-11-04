@@ -47,6 +47,7 @@ function clearMechs {
         selectedEntity.remove();
         select reset;
     }
+    global augState = {};
     global mRad = [];
     global mPos = [];
     global mYaw = [];
