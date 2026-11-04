@@ -625,7 +625,18 @@ function testQueue {
     checkNum("drop closes the menu", menuIsOpen(line me), 0, 0);
     checkNum("dropped into a mech", num.min(mechOf(line me), 1), 1, 0);
     checkStr("mode recorded", global modeOf[line me] as str, "ffa");
-    leaveMech();
+    // Clearing the mechs takes the pilot's cockpit view down (MEC-104).
+    clearMechs();
+    checkNum("clear drops the visor", fxMaskOf(line me), 0, 0);
+    line panels = {};
+    if (global hudPanels.hasKeys(line me)) {
+        line panels = global hudPanels[line me] as dict;
+    }
+    line shown = 0;
+    if (line panels.hasKeys("schema") || line panels.hasKeys("crosshair")) {
+        line shown = 1;
+    }
+    checkNum("clear hides schema and cockpit", line shown, 0, 0);
     global modeOf.remove(line me);
 }
 

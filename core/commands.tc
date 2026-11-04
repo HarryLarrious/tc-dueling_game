@@ -28,9 +28,16 @@ function resetConfig {
     global arenaR = 25;
 }
 
-/** Removes every mech entity and empties the mech lists. */
+/** Removes every mech entity and empties the mech lists. Pilots lose their
+ * cockpit, schema and visor first (MEC-104). */
 function clearMechs {
     repeat (line c to global mCount) {
+        line pilot = global mDriver[line c];
+        if (line pilot != "") {
+            schemaHide(line pilot);
+            cockpitHide(line pilot);
+            fxCockpit(line pilot, 0);
+        }
         select entitiesByName(global mSeat[line c]);
         selectedEntity.remove();
         select reset;
