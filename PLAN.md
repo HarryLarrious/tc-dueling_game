@@ -166,8 +166,11 @@ Each class has a fixed skeleton. A loadout picks one prebuilt part per slot:
   in all, so even everyone stays under 0.3 MB. Alternative if that ever
   changes: DF variable buckets (Load/Save Variable Bucket, keyed storage
   outside the plot cap, shareable between plots through a namespace).
-  Terracotta 1.0.0-beta.10 has no bucket variable scope to write them, and
-  a namespace must be set up on the plot, so they are not used yet.
+  Terracotta 1.0.0-beta.10 addresses them (`bvar(bucket, name)`,
+  `bvar.load` / `bvar.save`), but they need a namespace set up for the plot
+  and an explicit load before use and save after, so they are not used at
+  this player count; the one-dict-per-player layout would move into one
+  bucket per player unchanged.
 
 ## Weapons
 
