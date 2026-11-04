@@ -49,6 +49,7 @@ function clearMechs {
     }
     global augState = {};
     global hrbAt = {};
+    global gunReadyAt = {};
     global mRad = [];
     global mPos = [];
     global mYaw = [];

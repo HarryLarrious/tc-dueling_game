@@ -19,8 +19,10 @@ function selfTestOnJoin(): num {
  * reticle for 15 s), "menu" (the main menu for 15 s), "custom" (the
  * customizer for 15 s), "settings" (the settings screen for 15 s) or
  * "party" (the main screen with a party of three and an invite, 15 s),
- * "queue" (the queue selector, 15 s) or "hrb" (an HRB warning ring 10
- * blocks ahead for 10 s, then the strike), for screenshots. */
+ * "queue" (the queue selector, 15 s), "hrb" (an HRB warning ring 10
+ * blocks ahead for 10 s, then the strike) or "weapon" (piloting with the
+ * weapon panel, a gun cooling down and an augment active, 15 s), for
+ * screenshots. */
 function selfTestDemo(): str {
     return "";
 }
@@ -316,6 +318,7 @@ function runSelfTest {
     checkNum("hud three bars", line bars.len(), 3, 0);
 
     testAugments();
+    testWeaponPanel();
     testQueue();
     clearMechs();
     line passed = global testPass;
@@ -390,6 +393,20 @@ function runSelfTest {
         global partyOf = {};
         global partyList = {};
         global partyInvite = {};
+    } else if (selfTestDemo() == "weapon") {
+        // Piloting a walker with the main gun cooling down and F active.
+        hudReset(line me2);
+        line lo = defaultLoadout("walker");
+        line lo["aug1"] = "hrb";
+        line lo["aug2"] = "repair";
+        spawnMech(line lo);
+        line w = global mCount;
+        sitMech(line w);
+        global gunReadyAt["%var(w)-main"] = game.ticksSinceStartup + 200;
+        augUse(line w, 2);
+        default.sendMessage(s"<gold>MECHTEST FX weapon");
+        wait(300);
+        clearMechs();
     } else if (selfTestDemo() == "hrb") {
         // A walker's HRB marked 10 blocks ahead of the player for 10 s,
         // then the strike.
@@ -700,6 +717,40 @@ function testAugments {
     checkNum("hrb hull hit", num.min(line before - global hbHp[global mPartStart[line target]], 1), 1, 0);
     checkNum("hrb last hit by user", global mLastHit[line target], line u, 0);
     checkNum("hrb spent", hrbStrike(line u, 1), 0, 0);
+}
+
+/** Items of panel id on player uuid's HUD ([] when not shown). */
+function panelItems(uuid: str, id: str): list {
+    if (global hudPanels.hasKeys(uuid) && (global hudPanels[uuid] as dict).hasKeys(id)) {
+        return ((global hudPanels[uuid] as dict)[id] as dict)["items"] as list;
+    }
+    return [];
+}
+
+/** Weapon panel checks (MEC-56): shown while piloting, gun cooldown from
+ * gunReadyAt, augment states, gone on leaving. */
+function testWeaponPanel {
+    line me = default.uuid;
+    line lo = defaultLoadout("walker");
+    line lo["aug1"] = "emp";
+    line lo["aug2"] = "repair";
+    spawnMech(line lo);
+    line c = global mCount;
+    sitMech(line c);
+    weaponUpdate(line c);
+    line items = panelItems(line me, "weapon");
+    checkNum("weapon panel shown", line items.len(), 10, 0);
+    checkStr("main gun named", (line items[1] as dict)["text"] as str, "RAILGUN");
+    checkStr("main gun ready", (line items[7] as dict)["text"] as str, "READY");
+    global gunReadyAt["%var(c)-main"] = game.ticksSinceStartup + 50;
+    augUse(line c, 1);
+    weaponUpdate(line c);
+    line items = panelItems(line me, "weapon");
+    checkStr("main gun cooldown", (line items[7] as dict)["text"] as str, "3S");
+    checkStr("augment active", (line items[9] as dict)["text"] as str, "ACTIVE 6S");
+    checkStr("other augment ready", (line items[10] as dict)["text"] as str, "READY");
+    leaveMech();
+    checkNum("weapon panel gone", panelItems(line me, "weapon").len(), 0, 0);
 }
 
 /** Queue checks (MEC-74): the cap, the selector, leader-only joins and a

@@ -79,7 +79,7 @@ function cockpitHide(uuid: str) {
         hudRemove(uuid, "frame%var(j)");
     }
     hudRemove(uuid, "crosshair");
-    hudFlush(uuid);
+    weaponHide(uuid);
     if (global retOf.hasKeys(uuid)) {
         line ret = global retOf[uuid] as str;
         select entitiesByName(line ret);

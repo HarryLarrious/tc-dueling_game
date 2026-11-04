@@ -499,6 +499,17 @@ translucent panels and a class cockpit frame (cockpit reference).
   augment F/Q cooldowns (bottom right). Extraction adds carried points, raid
   timer and extraction zone markers. Pings are world-space markers shown only
   to your party.
+  Weapon panel as built (MEC-56, `ui/weapon.tc`): panel "weapon" at the
+  bottom-right anchor, bar slot 2, inside the cockpit frame corner: main gun
+  name (large, cyan) with damage and shot speed, the secondary below it
+  (both always live: shift fires the secondary), then F and Q with their
+  augment names; a right-hand status column shows READY (green), the
+  seconds till the next shot or the cooldown (amber), ACTIVE n S (cyan),
+  EMP n S (red) or LOST (dark grey). Gun cooldowns come from `gunReadyAt`
+  ("<c>-main" / "<c>-secondary" -> tick), which the firing code (MEC-42)
+  writes. The mech loop checks every pilot every tick and rebuilds the
+  panel only when a status text changes (whole seconds). Verified on Plot
+  206003 (2026-11-03) by screenshot.
 
 **How it is drawn**
 

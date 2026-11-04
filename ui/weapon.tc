@@ -1,0 +1,126 @@
+// Weapon panel (PLAN.md, UI and HUD; MEC-56), bottom right of the HUD
+// mockup, under the damage schema: the main gun's name with its damage and
+// shot speed and its cooldown till the next shot, the same for the
+// secondary (shift fires it, MEC-93, so both are always live), then the F
+// and Q augments with their state. Panel "weapon" at the bottom-right anchor
+// in bar slot 2, right-aligned 24 units from the screen edge (inside the
+// cockpit frame's corner).
+//
+// Gun cooldowns come from gunReadyAt, which the firing code (MEC-42) sets
+// when a gun fires. The panel is rebuilt only when a status text changes
+// (whole seconds), checked every tick for every pilot.
+
+/** Tick each gun can fire next ("<c>-main" / "<c>-secondary" -> tick),
+ * written by the firing code (MEC-42); missing = ready. */
+declare global gunReadyAt: dict;
+/** Status texts last shown per pilot (uuid -> signature). */
+declare global weaponSig: dict;
+
+/** Whole seconds in `ticks`, rounded up, as "<n>S". */
+function secsText(ticks: num): str {
+    line s = num.ceil(ticks / 20);
+    return "%var(s)S";
+}
+
+/** Status of gun `which` ("main" / "secondary") of mech c: [text, palette]. */
+function gunStatus(c: num, which: str): list {
+    line ok = "mainOk";
+    if (which == "secondary") {
+        line ok = "secOk";
+    }
+    if ((global mLoss[c])[line ok] as num == 0) {
+        return ["LOST", 2];
+    }
+    line key = "%var(c)-%var(which)";
+    if (global gunReadyAt.hasKeys(line key)) {
+        line left = (global gunReadyAt[line key] as num) - game.ticksSinceStartup;
+        if (line left > 0) {
+            return [secsText(line left), 4];
+        }
+    }
+    return ["READY", 6];
+}
+
+/** Status of augment slot 1 or 2 of mech c: [text, palette]. */
+function augHudStatus(c: num, slot: num): list {
+    line st = augStatus(c, slot);
+    if (line st == "lost") {
+        return ["LOST", 2];
+    }
+    if (line st == "emp") {
+        return ["EMP " + secsText(augLeft(c, "emp")), 5];
+    }
+    if (line st == "active") {
+        return ["ACTIVE " + secsText(augLeft(c, "active%var(slot)")), 3];
+    }
+    if (line st == "cooldown") {
+        return [secsText(augLeft(c, "ready%var(slot)")), 4];
+    }
+    return ["READY", 6];
+}
+
+/** One gun's info line: damage and shot speed in blocks per second. */
+function gunInfo(id: str): str {
+    line dmg = partNum(id, "damage");
+    line speed = num.round(partNum(id, "shotSpeed") * 20);
+    return "%var(dmg) DMG  %var(speed) B/S";
+}
+
+/** The weapon panel's items for mech c with statuses sts (main, secondary,
+ * F, Q; each [text, palette]). */
+function weaponItems(c: num, sts: list): list {
+    line lo = global mLoadout[c];
+    line main = lo["main"] as str;
+    line sec = lo["secondary"] as str;
+    line out = [
+        hudItem(partStr(line main, "name").setCase(case="UPPERCASE"), "l", 3, -24, -17, "right"),
+        hudItem(gunInfo(line main), "s", 1, -172, -12, "left"),
+        hudItem(partStr(line sec, "name").setCase(case="UPPERCASE"), "m", 0, -24, -10, "right"),
+        hudItem(gunInfo(line sec), "s", 1, -172, -7, "left"),
+        hudItem("F  " + partStr(lo["aug1"] as str, "name").setCase(case="UPPERCASE"), "s", 0, -172, -5, "left"),
+        hudItem("Q  " + partStr(lo["aug2"] as str, "name").setCase(case="UPPERCASE"), "s", 0, -172, -3, "left")
+    ];
+    // Status texts in a right-aligned column: main, secondary, F, Q.
+    line rows = [-12, -7, -5, -3];
+    repeat (line i to 4) {
+        line s = sts[line i] as list;
+        line out.append(hudItem(line s[1] as str, "s", line s[2] as num, -24, line rows[line i] as num, "right"));
+    }
+    return line out;
+}
+
+/** Shows or refreshes mech c's weapon panel for its pilot when a status
+ * changed. */
+function weaponUpdate(c: num) {
+    line pilot = global mDriver[c];
+    if (line pilot == "") {
+        return;
+    }
+    line sts = [gunStatus(c, "main"), gunStatus(c, "secondary"), augHudStatus(c, 1), augHudStatus(c, 2)];
+    line sig = "%var(c)";
+    for (line s of line sts) {
+        line sig = line sig + "|" + ((line s as list)[1] as str);
+    }
+    if (global weaponSig.hasKeys(line pilot) && global weaponSig[line pilot] as str == line sig) {
+        return;
+    }
+    global weaponSig[line pilot] = line sig;
+    hudSet(line pilot, "weapon", 8, 2, weaponItems(c, line sts));
+    hudFlush(line pilot);
+}
+
+/** Per tick: every piloted mech's weapon panel. */
+function weaponTick {
+    repeat (line c to global mCount) {
+        if (global mAlive[line c] == 1) {
+            weaponUpdate(line c);
+        }
+    }
+}
+
+/** Takes the weapon panel off player uuid's HUD. */
+function weaponHide(uuid: str) {
+    global weaponSig.remove(uuid);
+    hudRemove(uuid, "weapon");
+    hudFlush(uuid);
+}
