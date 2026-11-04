@@ -534,8 +534,14 @@ translucent panels and a class cockpit frame (cockpit reference).
   interaction ranges to 64 so the click reaches) marks the spot, or the mech
   hit as ENEMY / ALLY, with a world-glyph text display that grows with
   distance, for 6 s, shown only to the party (privAdd, then unhidden for the
-  members); one ping per player. Hit marker and killfeed verified on Plot
-  206003 (2026-11-03) by screenshot.
+  members); one ping per player. Hit marker, killfeed and a ground ping
+  verified on Plot 206003 (2026-11-03) by screenshot.
+  Cockpit view (MEC-105): from the seat the mech's own hull, torso and
+  gun placeholders filled the middle of the screen, so they are hidden from
+  their pilot while seated (`cockpitOwnParts`, `setEntityHidden` for the
+  pilot only) and shown again on leaving or destruction (the wreck's debris
+  stays visible). The reticle and crosshair show the aim; legs and augment
+  modules stay in view.
 
 **How it is drawn**
 

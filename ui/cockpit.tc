@@ -109,3 +109,22 @@ function reticleTick(c: num) {
     selectedEntity.setDisplayScale(line scale, line scale, line scale);
     select reset;
 }
+
+/** Hides (1) or shows again (0) mech c's hull, torso and both guns for its
+ * pilot uuid: from the seat they fill the middle of the view (MEC-105; the
+ * gun reticle and crosshair show the aim). Everyone else still sees them,
+ * and the pilot still sees the legs and augment modules. */
+function cockpitOwnParts(uuid: str, c: num, hide: num) {
+    line first = global mPartStart[c];
+    line ents: list[str] = [];
+    repeat (line i to 4) {
+        line ents.append(global mPartEnt[line first + line i - 1]);
+    }
+    select playersByName(uuid);
+    if (hide == 1) {
+        selected.setEntityHidden(line ents, hidden="Enable");
+    } else {
+        selected.setEntityHidden(line ents, hidden="Disable");
+    }
+    select reset;
+}

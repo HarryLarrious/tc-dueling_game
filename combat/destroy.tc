@@ -52,6 +52,8 @@ function destroyMech(c: num) {
  * a respawn timer in FFA (MEC-65), spectating the party in Extraction
  * (MEC-70). Until then the pilot is just told. */
 function pilotLost(c: num, uuid: str) {
+    // The wreck's hull and torso fly off as debris the pilot should see.
+    cockpitOwnParts(uuid, c, 0);
     schemaHide(uuid);
     cockpitHide(uuid);
     fxDeathFade(uuid);

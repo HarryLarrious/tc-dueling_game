@@ -117,6 +117,7 @@ function leaveMech {
     line c = mechOf(default.uuid);
     if (line c != 0) {
         global mDriver[line c] = "";
+        cockpitOwnParts(default.uuid, line c, 0);
         default.setReachAttribute(4.5, attr="Block interaction range");
         default.setReachAttribute(3, attr="Entity interaction range");
         schemaHide(default.uuid);
@@ -147,6 +148,7 @@ function sitMech(c: num) {
     // Middle-click pings reach 64 blocks (ui/combatfeed.tc).
     default.setReachAttribute(64, attr="Block interaction range");
     default.setReachAttribute(64, attr="Entity interaction range");
+    cockpitOwnParts(default.uuid, line c, 1);
     schemaUpdate(line c);
     fxCockpit(default.uuid, 1);
     cockpitShow(default.uuid, line c);
