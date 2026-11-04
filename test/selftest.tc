@@ -18,8 +18,9 @@ function selfTestOnJoin(): num {
  * "fx" (each screen effect for 12 s), "cockpit" (frame, crosshair and gun
  * reticle for 15 s), "menu" (the main menu for 15 s), "custom" (the
  * customizer for 15 s), "settings" (the settings screen for 15 s) or
- * "party" (the main screen with a party of three and an invite, 15 s) or
- * "queue" (the queue selector, 15 s), for screenshots. */
+ * "party" (the main screen with a party of three and an invite, 15 s),
+ * "queue" (the queue selector, 15 s) or "hrb" (an HRB warning ring 10
+ * blocks ahead for 10 s, then the strike), for screenshots. */
 function selfTestDemo(): str {
     return "";
 }
@@ -389,6 +390,25 @@ function runSelfTest {
         global partyOf = {};
         global partyList = {};
         global partyInvite = {};
+    } else if (selfTestDemo() == "hrb") {
+        // A walker's HRB marked 10 blocks ahead of the player for 10 s,
+        // then the strike.
+        line lo = defaultLoadout("walker");
+        line lo["aug1"] = "hrb";
+        spawnMech(line lo);
+        line u = global mCount;
+        augUse(line u, 1);
+        line ahead = forwardVec();
+        line spot = vec(default.location.x, global floorY, default.location.z) + line ahead * 10;
+        global hrbAt["%var(u)-1"] = line spot;
+        default.sendMessage(s"<gold>MECHTEST FX hrb");
+        repeat (50) {
+            hrbTick(line u, 1, 4);
+            wait(4);
+        }
+        hrbStrike(line u, 1);
+        wait(40);
+        clearMechs();
     } else if (selfTestDemo() == "queue") {
         hudReset(line me2);
         menuOpen("queue");
@@ -662,6 +682,24 @@ function testAugments {
     checkNum("repair adds 10% in all", global hbHp[line hull], line max * 0.6, 0.05);
     checkNum("repair caps at max", global hbHp[line hull + 2], global hbHpMax[line hull + 2], 0);
     checkNum("destroyed part stays destroyed", global hbHp[line hull + 3], 0, 0);
+
+    // HRB Cannon (MEC-51): the spot comes from the ray; the strike splashes
+    // the target and is spent once.
+    line lo["aug1"] = "hrb";
+    spawnMech(line lo);
+    line u = global mCount;
+    spawnMech(defaultLoadout("walker"));
+    line target = global mCount;
+    testPlace(line target, vec(global arenaX + 12, global floorY, global arenaZ - 12), 0);
+    checkStr("hrb used", augUse(line u, 1), "");
+    checkNum("hrb spot picked", global hrbAt.hasKeys("%var(u)-1"), 1, 0);
+    global hrbAt["%var(u)-1"] = global mBoundAt[line target];
+    line before = global hbHp[global mPartStart[line target]];
+    line dealt = hrbStrike(line u, 1);
+    checkNum("hrb strike deals damage", num.min(line dealt, 1), 1, 0);
+    checkNum("hrb hull hit", num.min(line before - global hbHp[global mPartStart[line target]], 1), 1, 0);
+    checkNum("hrb last hit by user", global mLastHit[line target], line u, 0);
+    checkNum("hrb spent", hrbStrike(line u, 1), 0, 0);
 }
 
 /** Queue checks (MEC-74): the cap, the selector, leader-only joins and a

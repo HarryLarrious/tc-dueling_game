@@ -48,6 +48,7 @@ function clearMechs {
         select reset;
     }
     global augState = {};
+    global hrbAt = {};
     global mRad = [];
     global mPos = [];
     global mYaw = [];

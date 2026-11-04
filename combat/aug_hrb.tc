@@ -1,0 +1,69 @@
+// HRB Cannon (PLAN.md, Augments; MEC-51): hypervelocity rods on the spot the
+// pilot looks at. On use a ray from the pilot's eye (up to hrbRange()
+// blocks, stopping at solid blocks) picks the spot; for the 40-tick
+// duration a red ring marks it for everyone and pilots of mechs inside get
+// the red warning pulse; when it runs out the rods hit: heavy splash damage
+// with falloff over the catalog radius through applyHit, from the user's
+// mech. The strike lands even if the user's mech is destroyed meanwhile.
+
+/** Strike spot per mech and slot ("<c>-<slot>" -> vec). */
+declare global hrbAt: dict;
+
+/** Farthest strike spot from the eye, in blocks. */
+function hrbRange(): num {
+    return 96;
+}
+
+/** Damage at the center of the strike (falls off to 0 at the radius). */
+function hrbDamage(): num {
+    return 240;
+}
+
+/** Picks the strike spot for mech c: the pilot's eye ray (the mech's facing
+ * from its seat without a pilot) to the first solid block. */
+function hrbStart(c: num, slot: num) {
+    line eye: loc = loc(0, 0, 0);
+    if (global mDriver[c] != "") {
+        select playersByName(global mDriver[c]);
+        line eye = selected.eyeLocation;
+        select reset;
+    } else {
+        line s = seatPoint(c);
+        line eye = loc(line s.x, line s.y, line s.z).setDirection(global mF[c]);
+    }
+    line stop = game.raycast(line eye, hrbRange(), blockCollision="Solid blocks");
+    global hrbAt["%var(c)-%var(slot)"] = vec(line stop.x, line stop.y, line stop.z);
+    allPlayers.playSound(snd("Beacon Activate"), line stop);
+}
+
+/** Warning while the strike is coming: a red ring every 4 ticks, and the
+ * warning pulse for pilots whose mech is inside. */
+function hrbTick(c: num, slot: num, left: num) {
+    if (left % 4 != 0) {
+        return;
+    }
+    line at = global hrbAt["%var(c)-%var(slot)"] as vec;
+    line r = partNum(augSlotId(c, slot), "radius");
+    allPlayers.displayParticleCircle(par("Dust", color="#FF3020", size=2), loc(line at.x, line at.y + 0.2, line at.z), line r * 2);
+    repeat (line m to global mCount) {
+        if (global mAlive[line m] == 1 && global mDriver[line m] != "" && (global mBoundAt[line m] - line at).len() <= global mBound[line m] + line r) {
+            fxPulse(global mDriver[line m], 32, 6);
+        }
+    }
+}
+
+/** The rods hit: splash damage at the spot. Returns the damage dealt. */
+function hrbStrike(c: num, slot: num): num {
+    line key = "%var(c)-%var(slot)";
+    if (!global hrbAt.hasKeys(line key)) {
+        return 0;
+    }
+    line at = global hrbAt[line key] as vec;
+    global hrbAt.remove(line key);
+    line here = loc(line at.x, line at.y, line at.z);
+    allPlayers.displayParticleEffect(par("Explosion Emitter"), line here);
+    allPlayers.displayParticleEffect(par("Flash"), line here);
+    allPlayers.playSound(snd("Lightning Impact"), line here);
+    allPlayers.playSound(snd("Explode"), line here);
+    return splashHit(line at, partNum(augSlotId(c, slot), "radius"), hrbDamage(), 0.8, c);
+}

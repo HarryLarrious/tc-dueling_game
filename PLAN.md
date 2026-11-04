@@ -230,6 +230,15 @@ tick while an augment is active.
   on each whole second of the 300-tick duration (15 steps), each adding
   10%/15 of max HP to every damaged part that is not destroyed, capped at
   max; the schema and the low-HP pulse update after each step.
+- **HRB Cannon as built** (MEC-51, `combat/aug_hrb.tc`): on use a ray from
+  the pilot's eye (the mech's facing from its seat without a pilot), up to
+  96 blocks to the first solid block, picks the spot. For the 40-tick
+  duration a red dust ring of the catalog radius (5) marks it for everyone
+  every 4 ticks, and pilots of mechs inside get the HRB warning pulse. Then
+  the rods hit: 240 splash damage at the center falling off to 0 at the
+  radius, push 0.8, credited to the user's mech; it lands even if the user
+  is destroyed meanwhile. Verified on Plot 206003 (2026-11-03) by
+  screenshot: the warning ring.
 
 | Augment | Effect | Implementation |
 | --- | --- | --- |

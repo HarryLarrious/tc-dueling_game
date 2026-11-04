@@ -29,6 +29,7 @@ class skeletons of placeholder parts, `@cpu` gauge). Next: the Stage 1 spikes in
 | `combat/damage.tc` | `applyHit` damage funnel: armor reduction, part HP, splash, impulses; `@hp @splash` |
 | `combat/loss.tc` | Part-loss effects per class (mobility, guns, torso lock, augments) and debris |
 | `combat/augment.tc` | Augment framework: F/Q slots, cooldowns and durations, EMP disable, lost modules |
+| `combat/aug_hrb.tc` | HRB Cannon augment: marked air strike on the looked-at spot |
 | `combat/aug_repair.tc` | Internal Repair Torch augment |
 | `combat/destroy.tc` | Mech destruction: wreck effect, all parts to debris, seat removed, pilot handed to the mode |
 | `combat/hitbox.tc` | Part hitboxes (boxes and leg capsules from the drawn displays), segment and splash queries, `@hitbox @hit` |
